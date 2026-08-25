@@ -77,3 +77,27 @@ HOST_PORT=8091 docker compose up --build -d
 Compose bind-mounts `./data` to `/data` in the container. The SQLite database therefore remains on the Docker host at `./data/momo-poo.db` when the container is replaced or removed. Back up the `data` directory to preserve event history.
 
 The container fixes ownership of `/data` at startup, then runs the application process as a non-root user.
+
+## Published Docker Image
+
+GitHub Actions tests and builds the image on pull requests. Pushes to `main` publish multi-platform `linux/amd64` and `linux/arm64` images to GitHub Container Registry:
+
+```sh
+docker pull ghcr.io/leejayhsu/momo-log:latest
+```
+
+The workflow publishes these tags:
+
+- `latest` for the current `main` branch
+- `sha-<commit>` for each published commit
+- Semantic version tags when a Git tag such as `v1.2.3` is pushed (`1.2.3` and `1.2`)
+
+The workflow uses the repository's automatic `GITHUB_TOKEN`; no registry credentials or Actions secrets need to be configured. If the package is not public after its first publication, change its visibility under the package's settings on GitHub.
+
+For a home server using `/docker/appdata` for persistent storage, use the provided image-based Compose file:
+
+```sh
+docker compose -f compose.home-server.yaml up -d
+```
+
+It publishes the application at `http://host-address:8090` and stores SQLite data in `/docker/appdata/momo-log/data` on the host. Adjust the host port, timezone, or volume path in `compose.home-server.yaml` as needed.

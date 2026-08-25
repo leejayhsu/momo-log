@@ -1,0 +1,12 @@
+services:
+  momo-log:
+    image: ghcr.io/leejayhsu/momo-log:latest
+    container_name: momo-log
+    restart: unless-stopped
+    environment:
+      TZ: "America/Los_Angeles"
+      APP_TIMEZONE: "America/Los_Angeles"
+    ports:
+      - "8090:8080"
+    volumes:
+      - /docker/appdata/momo-log/data:/data
