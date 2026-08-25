@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -31,6 +32,8 @@ type Service struct {
 
 // New creates a Web Push service using a persistent VAPID key pair.
 func New(store subscriptionStore, publicKey, privateKey, subscriber string) *Service {
+	// webpush-go v1.4.0 prepends mailto: to non-HTTPS subjects itself.
+	subscriber = strings.TrimPrefix(subscriber, "mailto:")
 	return &Service{store: store, publicKey: publicKey, privateKey: privateKey, subscriber: subscriber}
 }
 
@@ -85,7 +88,11 @@ func (s *Service) NotifyTrip(ctx context.Context, trip trips.Trip, location *tim
 				return
 			}
 			defer response.Body.Close()
-			_, _ = io.Copy(io.Discard, response.Body)
+			responseBody, readErr := io.ReadAll(io.LimitReader(response.Body, 4<<10))
+			if readErr != nil {
+				errors <- fmt.Errorf("read push service response: %w", readErr)
+				return
+			}
 			if response.StatusCode == http.StatusNotFound || response.StatusCode == http.StatusGone {
 				deleteCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
 				defer cancel()
@@ -95,6 +102,11 @@ func (s *Service) NotifyTrip(ctx context.Context, trip trips.Trip, location *tim
 				return
 			}
 			if response.StatusCode < 200 || response.StatusCode >= 300 {
+				detail := strings.TrimSpace(string(responseBody))
+				if detail != "" {
+					errors <- fmt.Errorf("push service returned %s: %s", response.Status, detail)
+					return
+				}
 				errors <- fmt.Errorf("push service returned %s", response.Status)
 			}
 		}(subscription)
