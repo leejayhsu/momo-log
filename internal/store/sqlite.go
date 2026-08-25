@@ -121,6 +121,19 @@ func (s *SQLite) create(ctx context.Context, occurredAt time.Time, hasPoo bool) 
 	return trips.Trip{ID: id, OccurredAt: occurredAt, HasPoo: hasPoo}, nil
 }
 
+// Delete removes a trip by ID and reports whether it existed.
+func (s *SQLite) Delete(ctx context.Context, id int64) (bool, error) {
+	result, err := s.db.ExecContext(ctx, "DELETE FROM trips WHERE id = ?", id)
+	if err != nil {
+		return false, fmt.Errorf("store: delete trip: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("store: get deleted trip count: %w", err)
+	}
+	return rows > 0, nil
+}
+
 // List returns trips in [start, end), newest first.
 func (s *SQLite) List(ctx context.Context, start, end time.Time) ([]trips.Trip, error) {
 	if !start.Before(end) {

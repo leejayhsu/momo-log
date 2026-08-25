@@ -22,6 +22,7 @@ const maxLookbackDays = 366
 
 type tripStore interface {
 	Create(context.Context, bool) (trips.Trip, error)
+	Delete(context.Context, int64) (bool, error)
 	List(context.Context, time.Time, time.Time) ([]trips.Trip, error)
 	Ping(context.Context) error
 }
@@ -42,9 +43,11 @@ func (a *app) routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", a.home)
 	mux.HandleFunc("POST /trips", a.createTripForm)
+	mux.HandleFunc("POST /trips/{id}/delete", a.deleteTripForm)
 	mux.HandleFunc("GET /history", a.history)
 	mux.HandleFunc("POST /api/v1/trips", a.createTripAPI)
 	mux.HandleFunc("GET /api/v1/trips", a.listTripsAPI)
+	mux.HandleFunc("DELETE /api/v1/trips/{id}", a.deleteTripAPI)
 	mux.HandleFunc("GET /healthz", a.health)
 	mux.Handle("GET /static/", http.StripPrefix("/static/", web.StaticHandler()))
 	return securityHeaders(recoverRequests(logRequests(mux)))
@@ -106,6 +109,33 @@ func (a *app) createTripForm(w http.ResponseWriter, r *http.Request) {
 		recorded = "poo"
 	}
 	http.Redirect(w, r, "/?recorded="+recorded, http.StatusSeeOther)
+}
+
+func (a *app) deleteTripForm(w http.ResponseWriter, r *http.Request) {
+	if !a.allow(w, r, a.writeLimiter) {
+		a.renderError(w, r, http.StatusTooManyRequests, "Too many changes", "The daily change limit has been reached. Try again tomorrow.")
+		return
+	}
+	id, err := parseTripID(r)
+	if err != nil {
+		a.renderError(w, r, http.StatusBadRequest, "Invalid trip", err.Error())
+		return
+	}
+	days, err := parseDays(r, 7)
+	if err != nil {
+		a.renderError(w, r, http.StatusBadRequest, "Invalid date range", err.Error())
+		return
+	}
+	deleted, err := a.store.Delete(r.Context(), id)
+	if err != nil {
+		a.renderError(w, r, http.StatusInternalServerError, "Could not delete this trip", "Please try again in a moment.")
+		return
+	}
+	if !deleted {
+		a.renderError(w, r, http.StatusNotFound, "Trip not found", "This trip may have already been deleted.")
+		return
+	}
+	http.Redirect(w, r, "/history?days="+strconv.Itoa(days), http.StatusSeeOther)
 }
 
 func (a *app) history(w http.ResponseWriter, r *http.Request) {
@@ -193,6 +223,28 @@ func (a *app) listTripsAPI(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (a *app) deleteTripAPI(w http.ResponseWriter, r *http.Request) {
+	if !a.allowJSON(w, r, a.writeLimiter) {
+		return
+	}
+	id, err := parseTripID(r)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, "invalid_id", err.Error())
+		return
+	}
+	deleted, err := a.store.Delete(r.Context(), id)
+	if err != nil {
+		writeAPIError(w, http.StatusInternalServerError, "internal_error", "trip could not be deleted")
+		return
+	}
+	if !deleted {
+		writeAPIError(w, http.StatusNotFound, "not_found", "trip not found")
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (a *app) health(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), time.Second)
 	defer cancel()
@@ -245,6 +297,14 @@ func parseDays(r *http.Request, fallback int) (int, error) {
 		return 0, fmt.Errorf("days must be one integer from 1 to %d", maxLookbackDays)
 	}
 	return days, nil
+}
+
+func parseTripID(r *http.Request) (int64, error) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil || id < 1 {
+		return 0, errors.New("trip ID must be a positive integer")
+	}
+	return id, nil
 }
 
 func lookbackRange(now time.Time, days int, location *time.Location) (time.Time, time.Time) {

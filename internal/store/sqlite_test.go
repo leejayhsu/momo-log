@@ -105,6 +105,35 @@ func TestListHonorsSubMillisecondBounds(t *testing.T) {
 	}
 }
 
+func TestDelete(t *testing.T) {
+	s := openTestStore(t, filepath.Join(t.TempDir(), "trips.db"))
+	ctx := context.Background()
+	keep, err := s.create(ctx, time.Date(2026, time.August, 25, 8, 0, 0, 0, time.UTC), false)
+	if err != nil {
+		t.Fatalf("create keep trip: %v", err)
+	}
+	remove, err := s.create(ctx, keep.OccurredAt.Add(time.Minute), true)
+	if err != nil {
+		t.Fatalf("create removable trip: %v", err)
+	}
+
+	deleted, err := s.Delete(ctx, remove.ID)
+	if err != nil || !deleted {
+		t.Fatalf("Delete(%d) = %t, %v; want true, nil", remove.ID, deleted, err)
+	}
+	deleted, err = s.Delete(ctx, remove.ID)
+	if err != nil || deleted {
+		t.Fatalf("second Delete(%d) = %t, %v; want false, nil", remove.ID, deleted, err)
+	}
+	got, err := s.List(ctx, keep.OccurredAt, remove.OccurredAt.Add(time.Millisecond))
+	if err != nil {
+		t.Fatalf("List() error = %v", err)
+	}
+	if len(got) != 1 || got[0] != keep {
+		t.Fatalf("List() after delete = %+v, want [%+v]", got, keep)
+	}
+}
+
 func TestPersistenceAcrossReopen(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "trips.db")
 	ctx := context.Background()

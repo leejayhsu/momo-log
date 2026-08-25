@@ -15,11 +15,13 @@ import (
 )
 
 type fakeStore struct {
-	items      []trips.Trip
-	createdPoo []bool
-	listStart  time.Time
-	listEnd    time.Time
-	err        error
+	items        []trips.Trip
+	createdPoo   []bool
+	deletedIDs   []int64
+	deleteResult bool
+	listStart    time.Time
+	listEnd      time.Time
+	err          error
 }
 
 func (s *fakeStore) Create(_ context.Context, hasPoo bool) (trips.Trip, error) {
@@ -33,6 +35,14 @@ func (s *fakeStore) Create(_ context.Context, hasPoo bool) (trips.Trip, error) {
 func (s *fakeStore) List(_ context.Context, start, end time.Time) ([]trips.Trip, error) {
 	s.listStart, s.listEnd = start, end
 	return s.items, s.err
+}
+
+func (s *fakeStore) Delete(_ context.Context, id int64) (bool, error) {
+	if s.err != nil {
+		return false, s.err
+	}
+	s.deletedIDs = append(s.deletedIDs, id)
+	return s.deleteResult, nil
 }
 
 func (s *fakeStore) Ping(context.Context) error { return s.err }
@@ -145,6 +155,56 @@ func TestCreateTripFormRedirects(t *testing.T) {
 	}
 	if len(store.createdPoo) != 1 || store.createdPoo[0] {
 		t.Fatalf("created values = %v", store.createdPoo)
+	}
+}
+
+func TestDeleteTripForm(t *testing.T) {
+	store := &fakeStore{deleteResult: true}
+	handler := testApp(store, time.UTC, time.Now()).routes()
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/trips/42/delete?days=30", nil))
+
+	if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/history?days=30" {
+		t.Fatalf("status = %d, location = %q", response.Code, response.Header().Get("Location"))
+	}
+	if len(store.deletedIDs) != 1 || store.deletedIDs[0] != 42 {
+		t.Fatalf("deleted IDs = %v, want [42]", store.deletedIDs)
+	}
+}
+
+func TestDeleteTripAPI(t *testing.T) {
+	tests := []struct {
+		name        string
+		path        string
+		store       *fakeStore
+		wantStatus  int
+		wantDeleted []int64
+		wantCode    string
+	}{
+		{name: "deleted", path: "/api/v1/trips/42", store: &fakeStore{deleteResult: true}, wantStatus: http.StatusNoContent, wantDeleted: []int64{42}},
+		{name: "not found", path: "/api/v1/trips/42", store: &fakeStore{}, wantStatus: http.StatusNotFound, wantDeleted: []int64{42}, wantCode: "not_found"},
+		{name: "invalid ID", path: "/api/v1/trips/nope", store: &fakeStore{}, wantStatus: http.StatusBadRequest, wantCode: "invalid_id"},
+		{name: "store error", path: "/api/v1/trips/42", store: &fakeStore{err: errors.New("database down")}, wantStatus: http.StatusInternalServerError, wantCode: "internal_error"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			testApp(tt.store, time.UTC, time.Now()).routes().ServeHTTP(response, httptest.NewRequest(http.MethodDelete, tt.path, nil))
+			if response.Code != tt.wantStatus {
+				t.Fatalf("status = %d, want %d; body = %s", response.Code, tt.wantStatus, response.Body.String())
+			}
+			if len(tt.store.deletedIDs) != len(tt.wantDeleted) {
+				t.Fatalf("deleted IDs = %v, want %v", tt.store.deletedIDs, tt.wantDeleted)
+			}
+			for i, id := range tt.wantDeleted {
+				if tt.store.deletedIDs[i] != id {
+					t.Fatalf("deleted IDs = %v, want %v", tt.store.deletedIDs, tt.wantDeleted)
+				}
+			}
+			if tt.wantCode != "" && !strings.Contains(response.Body.String(), `"code":"`+tt.wantCode+`"`) {
+				t.Fatalf("body = %s, want error code %q", response.Body.String(), tt.wantCode)
+			}
+		})
 	}
 }
 

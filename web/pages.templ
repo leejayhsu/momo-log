@@ -95,7 +95,7 @@ templ HomePage(data HomePageData) {
 					<a class="text-link" href="/history">View history <span aria-hidden="true">&rarr;</span></a>
 				}
 				@card.Content(card.ContentProps{Class: "recent-content"}) {
-					@tripList(data.RecentTrips, 5)
+					@tripList(data.RecentTrips, 5, 0)
 				}
 			}
 		</section>
@@ -149,7 +149,7 @@ templ HistoryPage(data HistoryPageData) {
 				@card.Description(card.DescriptionProps{Class: "panel-kicker"}) { Individual check-ins, newest first }
 			}
 			@card.Content(card.ContentProps{Class: "recent-content"}) {
-				@tripList(data.RecentTrips, 0)
+				@tripList(data.RecentTrips, 0, data.Days)
 			}
 		}
 	}
@@ -167,7 +167,7 @@ templ ErrorPage(data ErrorPageData) {
 	}
 }
 
-templ tripList(trips []Trip, limit int) {
+templ tripList(trips []Trip, limit int, deleteDays int) {
 	if len(trips) == 0 {
 		@emptyState("No trips yet", "Momo's next outing will appear here.")
 	} else {
@@ -177,7 +177,16 @@ templ tripList(trips []Trip, limit int) {
 					<li>
 						<span class={ tripBadgeClass(trip.HasPoo) } aria-hidden="true">@tripTypeIcon(trip.HasPoo)</span>
 						<div><strong>{ tripTypeLabel(trip.HasPoo) }</strong><time datetime={ trip.OccurredAt.Format(time.RFC3339) }>{ trip.OccurredAt.Format("Mon, Jan 2 at 3:04 PM") }</time></div>
-						<span class="event-status">Logged</span>
+						if deleteDays > 0 {
+							<details class="delete-trip">
+								<summary>Delete</summary>
+								<form method="post" action={ templ.SafeURL("/trips/" + strconv.FormatInt(trip.ID, 10) + "/delete?days=" + strconv.Itoa(deleteDays)) }>
+									<button type="submit" aria-label={ "Confirm deletion of " + tripTypeLabel(trip.HasPoo) + " trip from " + trip.OccurredAt.Format("Monday, January 2 at 3:04 PM") }>Confirm delete</button>
+								</form>
+							</details>
+						} else {
+							<span class="event-status">Logged</span>
+						}
 					</li>
 				}
 			}

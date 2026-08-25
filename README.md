@@ -39,6 +39,14 @@ List today's trips:
 curl --fail-with-body 'http://localhost:8080/api/v1/trips?days=1'
 ```
 
+Delete a trip by its ID:
+
+```sh
+curl --fail-with-body -X DELETE http://localhost:8080/api/v1/trips/123
+```
+
+A successful deletion returns `204 No Content`; an ID that does not exist returns `404 Not Found`.
+
 `days` is the number of local calendar days to include, including today. For example, `days=1` returns only the current day and `days=7` returns today plus the previous six days. Calendar boundaries use `APP_TIMEZONE`.
 
 The application has no authentication. Writes are limited to 50 requests per observed source address per local day and reads to 60 requests per observed source address per minute by default. Requests through one reverse proxy or Cloudflare Tunnel intentionally share a bucket. These limits are abuse protection, not access control; use a Cloudflare Access policy if the tunnel should be private.
@@ -50,7 +58,7 @@ The application has no authentication. Writes are limited to 50 requests per obs
 | `LISTEN_ADDR` | `:8080` | Address and port used by the HTTP server. |
 | `DATABASE_PATH` | `./data/momo-poo.db` | SQLite database path. Compose sets this to `/data/momo-poo.db`. |
 | `APP_TIMEZONE` | `Local` | IANA timezone used for display and `days` boundaries, such as `America/New_York`. |
-| `WRITE_LIMIT_PER_DAY` | `50` | Trip creation attempts allowed per client IP and local day. |
+| `WRITE_LIMIT_PER_DAY` | `50` | Trip creation and deletion attempts allowed per client IP and local day. |
 | `READ_LIMIT_PER_MINUTE` | `60` | API list requests allowed per client IP and minute. |
 | `HOST_PORT` | `8090` | Compose-only host port published for the application. |
 
