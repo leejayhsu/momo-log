@@ -1,0 +1,21 @@
+services:
+  momo-poo:
+    build:
+      context: .
+    restart: unless-stopped
+    environment:
+      LISTEN_ADDR: :8080
+      DATABASE_PATH: ${DATABASE_PATH:-/data/momo-poo.db}
+      APP_TIMEZONE: ${APP_TIMEZONE:-Local}
+      WRITE_LIMIT_PER_DAY: ${WRITE_LIMIT_PER_DAY:-50}
+      READ_LIMIT_PER_MINUTE: ${READ_LIMIT_PER_MINUTE:-60}
+    ports:
+      - "${HOST_PORT:-8090}:8080"
+    volumes:
+      - ./data:/data
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

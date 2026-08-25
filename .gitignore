@@ -1,0 +1,6 @@
+/data/
+/momo-poo
+*.db
+*.db-shm
+*.db-wal
+.DS_Store

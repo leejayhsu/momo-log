@@ -1,0 +1,9 @@
+.git
+.gitignore
+data
+*.db
+*.db-shm
+*.db-wal
+momo-poo
+README.md
+compose.yaml
