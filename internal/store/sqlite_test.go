@@ -134,6 +134,41 @@ func TestDelete(t *testing.T) {
 	}
 }
 
+func TestPushSubscriptionsAndVAPIDKeysPersist(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "trips.db")
+	ctx := context.Background()
+	s := openTestStore(t, path)
+	subscription := PushSubscription{Endpoint: "https://push.example/one", P256DH: "key-one", Auth: "auth-one"}
+	if err := s.SavePushSubscription(ctx, subscription); err != nil {
+		t.Fatalf("SavePushSubscription() error = %v", err)
+	}
+	subscription.P256DH = "key-two"
+	if err := s.SavePushSubscription(ctx, subscription); err != nil {
+		t.Fatalf("SavePushSubscription() update error = %v", err)
+	}
+	got, err := s.ListPushSubscriptions(ctx)
+	if err != nil || len(got) != 1 || got[0] != subscription {
+		t.Fatalf("ListPushSubscriptions() = %+v, %v; want [%+v]", got, err, subscription)
+	}
+
+	privateKey, publicKey, err := s.EnsureVAPIDKeys(ctx, "private-one", "public-one")
+	if err != nil || privateKey != "private-one" || publicKey != "public-one" {
+		t.Fatalf("EnsureVAPIDKeys() = %q, %q, %v", privateKey, publicKey, err)
+	}
+	privateKey, publicKey, err = s.EnsureVAPIDKeys(ctx, "private-two", "public-two")
+	if err != nil || privateKey != "private-one" || publicKey != "public-one" {
+		t.Fatalf("second EnsureVAPIDKeys() = %q, %q, %v", privateKey, publicKey, err)
+	}
+
+	if err := s.DeletePushSubscription(ctx, subscription.Endpoint); err != nil {
+		t.Fatalf("DeletePushSubscription() error = %v", err)
+	}
+	got, err = s.ListPushSubscriptions(ctx)
+	if err != nil || len(got) != 0 {
+		t.Fatalf("ListPushSubscriptions() after delete = %+v, %v", got, err)
+	}
+}
+
 func TestPersistenceAcrossReopen(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "trips.db")
 	ctx := context.Background()

@@ -41,6 +41,12 @@ h1 { margin: .55rem 0; font-family: Georgia, "Times New Roman", serif; font-size
 .success-banner svg circle { fill: rgba(255,255,255,.5); }
 .success-banner div { display: grid; gap: .15rem; }
 .success-banner span { color: #506b57; }
+.notification-panel { width: min(780px, 100%); min-height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin: 0 auto 1.4rem; padding: .9rem 1.2rem; background: rgba(255,250,240,.82); border: 1px solid var(--line); border-radius: 16px; }
+.notification-panel[hidden] { display: none; }
+.notification-panel div { display: grid; gap: .2rem; }
+.notification-panel span { color: var(--muted); }
+.notification-panel button { min-height: 48px; padding: 0 1rem; flex: none; color: white; background: var(--green); border: 0; border-radius: 10px; font-weight: 800; cursor: pointer; }
+.notification-panel button[data-enabled="true"] { color: var(--green); background: var(--green-light); border: 1px solid #b8ccb8; }
 .trip-actions { width: min(1120px, 100%); display: grid; grid-template-columns: 1fr 1fr; gap: clamp(1rem, 2.5vw, 2rem); margin: 0 auto clamp(2.2rem, 5vh, 4rem); }
 .trip-actions form { min-width: 0; }
 .trip-button { width: 100%; min-height: clamp(240px, 34vh, 350px); display: flex; flex-direction: column; gap: .3rem; border: 0; border-radius: 34px; box-shadow: var(--shadow); cursor: pointer; transition: transform .16s ease, box-shadow .16s ease; -webkit-tap-highlight-color: transparent; }
@@ -148,6 +154,7 @@ h1 { margin: .55rem 0; font-family: Georgia, "Times New Roman", serif; font-size
   .hero { margin: 2.2rem auto 1.5rem; }
   .hero p { font-size: .95rem; }
   .trip-actions { gap: .75rem; }
+  .notification-panel { align-items: stretch; flex-direction: column; }
   .trip-button { min-height: 190px; border-radius: 23px; }
   .trip-icon { width: 62px; }
   .trip-label { font-size: 2rem; }

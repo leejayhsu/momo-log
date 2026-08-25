@@ -1,0 +1,19 @@
+{
+  "id": "/",
+  "name": "Momo Outdoor Log",
+  "short_name": "Momo",
+  "description": "Track Momo's bathroom trips.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6efe1",
+  "theme_color": "#f6efe1",
+  "icons": [
+    {
+      "src": "/static/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

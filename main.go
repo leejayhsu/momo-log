@@ -12,6 +12,9 @@ import (
 	"syscall"
 	"time"
 
+	webpush "github.com/SherClockHolmes/webpush-go"
+
+	pushservice "momo-poo/internal/push"
 	"momo-poo/internal/ratelimit"
 	"momo-poo/internal/store"
 )
@@ -22,6 +25,7 @@ type config struct {
 	location     *time.Location
 	writeLimit   int
 	readLimit    int
+	vapidSubject string
 }
 
 func main() {
@@ -44,11 +48,21 @@ func run() error {
 		return err
 	}
 	defer db.Close()
+	privateKey, publicKey, err := webpush.GenerateVAPIDKeys()
+	if err != nil {
+		return errors.New("generate VAPID keys: " + err.Error())
+	}
+	privateKey, publicKey, err = db.EnsureVAPIDKeys(context.Background(), privateKey, publicKey)
+	if err != nil {
+		return err
+	}
+	push := pushservice.New(db, publicKey, privateKey, cfg.vapidSubject)
 
 	app := newApp(db, cfg.location,
 		ratelimit.NewWrite(cfg.writeLimit, cfg.location, 4096),
 		ratelimit.NewRead(cfg.readLimit, 4096),
 	)
+	app.push = push
 	server := &http.Server{
 		Addr:              cfg.listenAddr,
 		Handler:           app.routes(),
@@ -102,6 +116,7 @@ func loadConfig() (config, error) {
 		location:     location,
 		writeLimit:   writeLimit,
 		readLimit:    readLimit,
+		vapidSubject: envOr("VAPID_SUBJECT", "mailto:momo@localhost"),
 	}, nil
 }
 

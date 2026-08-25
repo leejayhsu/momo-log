@@ -26,6 +26,13 @@ type SQLite struct {
 	now func() time.Time
 }
 
+// PushSubscription contains the browser-provided Web Push delivery details.
+type PushSubscription struct {
+	Endpoint string
+	P256DH   string
+	Auth     string
+}
+
 // Open opens a SQLite database and applies its connection settings and schema.
 func Open(ctx context.Context, cfg Config) (*SQLite, error) {
 	if cfg.Path == "" {
@@ -87,7 +94,17 @@ func (s *SQLite) migrate(ctx context.Context) error {
 		)`,
 		`CREATE INDEX IF NOT EXISTS trips_occurred_at_idx
 			ON trips (occurred_at_ms DESC, id DESC)`,
-		"PRAGMA user_version = 1",
+		`CREATE TABLE IF NOT EXISTS push_subscriptions (
+			endpoint TEXT PRIMARY KEY,
+			p256dh TEXT NOT NULL,
+			auth TEXT NOT NULL,
+			created_at_ms INTEGER NOT NULL
+		)`,
+		`CREATE TABLE IF NOT EXISTS app_settings (
+			key TEXT PRIMARY KEY,
+			value TEXT NOT NULL
+		)`,
+		"PRAGMA user_version = 2",
 	}
 	for _, statement := range statements {
 		if _, err := tx.ExecContext(ctx, statement); err != nil {
@@ -98,6 +115,84 @@ func (s *SQLite) migrate(ctx context.Context) error {
 		return fmt.Errorf("store: commit migration: %w", err)
 	}
 	return nil
+}
+
+// SavePushSubscription creates or refreshes a browser push subscription.
+func (s *SQLite) SavePushSubscription(ctx context.Context, subscription PushSubscription) error {
+	_, err := s.db.ExecContext(ctx, `
+		INSERT INTO push_subscriptions (endpoint, p256dh, auth, created_at_ms)
+		VALUES (?, ?, ?, ?)
+		ON CONFLICT(endpoint) DO UPDATE SET
+			p256dh = excluded.p256dh,
+			auth = excluded.auth,
+			created_at_ms = excluded.created_at_ms`,
+		subscription.Endpoint, subscription.P256DH, subscription.Auth, s.now().UnixMilli(),
+	)
+	if err != nil {
+		return fmt.Errorf("store: save push subscription: %w", err)
+	}
+	return nil
+}
+
+// DeletePushSubscription removes a browser push subscription by endpoint.
+func (s *SQLite) DeletePushSubscription(ctx context.Context, endpoint string) error {
+	if _, err := s.db.ExecContext(ctx, "DELETE FROM push_subscriptions WHERE endpoint = ?", endpoint); err != nil {
+		return fmt.Errorf("store: delete push subscription: %w", err)
+	}
+	return nil
+}
+
+// ListPushSubscriptions returns all registered browser push subscriptions.
+func (s *SQLite) ListPushSubscriptions(ctx context.Context) ([]PushSubscription, error) {
+	rows, err := s.db.QueryContext(ctx, "SELECT endpoint, p256dh, auth FROM push_subscriptions ORDER BY created_at_ms")
+	if err != nil {
+		return nil, fmt.Errorf("store: list push subscriptions: %w", err)
+	}
+	defer rows.Close()
+
+	result := make([]PushSubscription, 0)
+	for rows.Next() {
+		var subscription PushSubscription
+		if err := rows.Scan(&subscription.Endpoint, &subscription.P256DH, &subscription.Auth); err != nil {
+			return nil, fmt.Errorf("store: scan push subscription: %w", err)
+		}
+		result = append(result, subscription)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("store: list push subscriptions: %w", err)
+	}
+	return result, nil
+}
+
+// EnsureVAPIDKeys returns the persisted VAPID key pair, creating it atomically when absent.
+func (s *SQLite) EnsureVAPIDKeys(ctx context.Context, privateKey, publicKey string) (string, string, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return "", "", fmt.Errorf("store: begin VAPID key transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var storedPrivate, storedPublic string
+	err = tx.QueryRowContext(ctx, `
+		SELECT
+			COALESCE(MAX(CASE WHEN key = 'vapid_private_key' THEN value END), ''),
+			COALESCE(MAX(CASE WHEN key = 'vapid_public_key' THEN value END), '')
+		FROM app_settings`).Scan(&storedPrivate, &storedPublic)
+	if err != nil {
+		return "", "", fmt.Errorf("store: read VAPID keys: %w", err)
+	}
+	if storedPrivate == "" || storedPublic == "" {
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO app_settings (key, value) VALUES ('vapid_private_key', ?), ('vapid_public_key', ?)
+			ON CONFLICT(key) DO UPDATE SET value = excluded.value`, privateKey, publicKey); err != nil {
+			return "", "", fmt.Errorf("store: save VAPID keys: %w", err)
+		}
+		storedPrivate, storedPublic = privateKey, publicKey
+	}
+	if err := tx.Commit(); err != nil {
+		return "", "", fmt.Errorf("store: commit VAPID keys: %w", err)
+	}
+	return storedPrivate, storedPublic, nil
 }
 
 // Create records a trip using the server's current time.

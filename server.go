@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,10 +11,12 @@ import (
 	"mime"
 	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 
 	"momo-poo/internal/ratelimit"
+	"momo-poo/internal/store"
 	"momo-poo/internal/trips"
 	"momo-poo/web"
 )
@@ -27,12 +30,20 @@ type tripStore interface {
 	Ping(context.Context) error
 }
 
+type pushService interface {
+	PublicKey() string
+	Subscribe(context.Context, store.PushSubscription) error
+	Unsubscribe(context.Context, string) error
+	NotifyTrip(context.Context, trips.Trip, *time.Location) error
+}
+
 type app struct {
 	store        tripStore
 	location     *time.Location
 	writeLimiter *ratelimit.Limiter
 	readLimiter  *ratelimit.Limiter
 	now          func() time.Time
+	push         pushService
 }
 
 func newApp(store tripStore, location *time.Location, writeLimiter, readLimiter *ratelimit.Limiter) *app {
@@ -48,7 +59,11 @@ func (a *app) routes() http.Handler {
 	mux.HandleFunc("POST /api/v1/trips", a.createTripAPI)
 	mux.HandleFunc("GET /api/v1/trips", a.listTripsAPI)
 	mux.HandleFunc("DELETE /api/v1/trips/{id}", a.deleteTripAPI)
+	mux.HandleFunc("GET /api/v1/push-config", a.pushConfigAPI)
+	mux.HandleFunc("POST /api/v1/push-subscriptions", a.createPushSubscriptionAPI)
+	mux.HandleFunc("DELETE /api/v1/push-subscriptions", a.deletePushSubscriptionAPI)
 	mux.HandleFunc("GET /healthz", a.health)
+	mux.Handle("GET /sw.js", web.StaticHandler())
 	mux.Handle("GET /static/", http.StripPrefix("/static/", web.StaticHandler()))
 	return securityHeaders(recoverRequests(logRequests(mux)))
 }
@@ -100,7 +115,7 @@ func (a *app) createTripForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	hasPoo := value == "true"
-	if _, err := a.store.Create(r.Context(), hasPoo); err != nil {
+	if _, err := a.createTrip(r.Context(), hasPoo); err != nil {
 		a.renderError(w, r, http.StatusInternalServerError, "Could not save this trip", "Please try again in a moment.")
 		return
 	}
@@ -188,12 +203,118 @@ func (a *app) createTripAPI(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, http.StatusBadRequest, "invalid_body", "body must contain exactly one JSON object")
 		return
 	}
-	item, err := a.store.Create(r.Context(), *input.HasPoo)
+	item, err := a.createTrip(r.Context(), *input.HasPoo)
 	if err != nil {
 		writeAPIError(w, http.StatusInternalServerError, "internal_error", "trip could not be saved")
 		return
 	}
 	writeJSON(w, http.StatusCreated, apiTrip(item))
+}
+
+func (a *app) createTrip(ctx context.Context, hasPoo bool) (trips.Trip, error) {
+	item, err := a.store.Create(ctx, hasPoo)
+	if err != nil {
+		return trips.Trip{}, err
+	}
+	if a.push != nil {
+		pushCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 8*time.Second)
+		defer cancel()
+		if err := a.push.NotifyTrip(pushCtx, item, a.location); err != nil {
+			log.Printf("notify trip %d: %v", item.ID, err)
+		}
+	}
+	return item, nil
+}
+
+func (a *app) pushConfigAPI(w http.ResponseWriter, r *http.Request) {
+	if a.push == nil {
+		writeAPIError(w, http.StatusServiceUnavailable, "push_unavailable", "push notifications are unavailable")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"public_key": a.push.PublicKey()})
+}
+
+func (a *app) createPushSubscriptionAPI(w http.ResponseWriter, r *http.Request) {
+	if !a.allowJSON(w, r, a.writeLimiter) {
+		return
+	}
+	if a.push == nil {
+		writeAPIError(w, http.StatusServiceUnavailable, "push_unavailable", "push notifications are unavailable")
+		return
+	}
+	subscription, ok := decodePushSubscription(w, r)
+	if !ok {
+		return
+	}
+	if err := a.push.Subscribe(r.Context(), subscription); err != nil {
+		writeAPIError(w, http.StatusInternalServerError, "internal_error", "push subscription could not be saved")
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (a *app) deletePushSubscriptionAPI(w http.ResponseWriter, r *http.Request) {
+	if !a.allowJSON(w, r, a.writeLimiter) {
+		return
+	}
+	if a.push == nil {
+		writeAPIError(w, http.StatusServiceUnavailable, "push_unavailable", "push notifications are unavailable")
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 8<<10)
+	var input struct {
+		Endpoint string `json:"endpoint"`
+	}
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil || ensureJSONEnd(decoder) != nil || !validPushEndpoint(input.Endpoint) {
+		writeAPIError(w, http.StatusBadRequest, "invalid_body", "body must contain a valid HTTPS endpoint")
+		return
+	}
+	if err := a.push.Unsubscribe(r.Context(), input.Endpoint); err != nil {
+		writeAPIError(w, http.StatusInternalServerError, "internal_error", "push subscription could not be removed")
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func decodePushSubscription(w http.ResponseWriter, r *http.Request) (store.PushSubscription, bool) {
+	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil || mediaType != "application/json" {
+		writeAPIError(w, http.StatusUnsupportedMediaType, "content_type", "Content-Type must be application/json")
+		return store.PushSubscription{}, false
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 8<<10)
+	var input struct {
+		Endpoint string `json:"endpoint"`
+		Keys     struct {
+			P256DH string `json:"p256dh"`
+			Auth   string `json:"auth"`
+		} `json:"keys"`
+	}
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil || ensureJSONEnd(decoder) != nil ||
+		!validPushEndpoint(input.Endpoint) || !validPushKey(input.Keys.P256DH, 65) || !validPushKey(input.Keys.Auth, 16) {
+		writeAPIError(w, http.StatusBadRequest, "invalid_body", "body must contain a valid Web Push subscription")
+		return store.PushSubscription{}, false
+	}
+	return store.PushSubscription{Endpoint: input.Endpoint, P256DH: input.Keys.P256DH, Auth: input.Keys.Auth}, true
+}
+
+func validPushEndpoint(endpoint string) bool {
+	if len(endpoint) == 0 || len(endpoint) > 4096 {
+		return false
+	}
+	parsed, err := url.ParseRequestURI(endpoint)
+	return err == nil && parsed.Scheme == "https" && parsed.Host != ""
+}
+
+func validPushKey(value string, size int) bool {
+	decoded, err := base64.RawURLEncoding.DecodeString(value)
+	return err == nil && len(decoded) == size
 }
 
 func (a *app) listTripsAPI(w http.ResponseWriter, r *http.Request) {
@@ -394,7 +515,7 @@ func setRateHeaders(w http.ResponseWriter, result ratelimit.Result, now time.Tim
 
 func securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self'; img-src 'self' data:; form-action 'self'")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; worker-src 'self'; form-action 'self'")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Referrer-Policy", "no-referrer")
 		next.ServeHTTP(w, r)

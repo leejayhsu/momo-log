@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"momo-poo/internal/ratelimit"
+	"momo-poo/internal/store"
 	"momo-poo/internal/trips"
 )
 
@@ -22,6 +24,27 @@ type fakeStore struct {
 	listStart    time.Time
 	listEnd      time.Time
 	err          error
+}
+
+type fakePush struct {
+	subscriptions []store.PushSubscription
+	unsubscribed  []string
+	notified      []trips.Trip
+	err           error
+}
+
+func (p *fakePush) PublicKey() string { return "public-key" }
+func (p *fakePush) Subscribe(_ context.Context, subscription store.PushSubscription) error {
+	p.subscriptions = append(p.subscriptions, subscription)
+	return p.err
+}
+func (p *fakePush) Unsubscribe(_ context.Context, endpoint string) error {
+	p.unsubscribed = append(p.unsubscribed, endpoint)
+	return p.err
+}
+func (p *fakePush) NotifyTrip(_ context.Context, trip trips.Trip, _ *time.Location) error {
+	p.notified = append(p.notified, trip)
+	return p.err
 }
 
 func (s *fakeStore) Create(_ context.Context, hasPoo bool) (trips.Trip, error) {
@@ -74,6 +97,65 @@ func TestCreateTripAPI(t *testing.T) {
 	}
 	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil || !body.HasPoo {
 		t.Fatalf("response body = %s, error = %v", response.Body.String(), err)
+	}
+}
+
+func TestCreateTripNotifiesWithoutFailingOnPushError(t *testing.T) {
+	store := &fakeStore{}
+	push := &fakePush{err: errors.New("push unavailable")}
+	a := testApp(store, time.UTC, time.Now())
+	a.push = push
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/trips", strings.NewReader(`{"has_poo":false}`))
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+
+	a.routes().ServeHTTP(response, request)
+
+	if response.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	if len(push.notified) != 1 || push.notified[0].HasPoo {
+		t.Fatalf("notified trips = %+v", push.notified)
+	}
+}
+
+func TestPushSubscriptionAPI(t *testing.T) {
+	push := &fakePush{}
+	a := testApp(&fakeStore{}, time.UTC, time.Now())
+	a.push = push
+	handler := a.routes()
+	p256dh := base64.RawURLEncoding.EncodeToString(make([]byte, 65))
+	auth := base64.RawURLEncoding.EncodeToString(make([]byte, 16))
+	body := `{"endpoint":"https://push.example/subscription","keys":{"p256dh":"` + p256dh + `","auth":"` + auth + `"}}`
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/push-subscriptions", strings.NewReader(body))
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusNoContent || len(push.subscriptions) != 1 {
+		t.Fatalf("status = %d, subscriptions = %+v, body = %s", response.Code, push.subscriptions, response.Body.String())
+	}
+
+	request = httptest.NewRequest(http.MethodDelete, "/api/v1/push-subscriptions", strings.NewReader(`{"endpoint":"https://push.example/subscription"}`))
+	request.Header.Set("Content-Type", "application/json")
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusNoContent || len(push.unsubscribed) != 1 {
+		t.Fatalf("status = %d, unsubscribed = %+v, body = %s", response.Code, push.unsubscribed, response.Body.String())
+	}
+}
+
+func TestPushSubscriptionAPIRejectsInvalidSubscription(t *testing.T) {
+	push := &fakePush{}
+	a := testApp(&fakeStore{}, time.UTC, time.Now())
+	a.push = push
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/push-subscriptions", strings.NewReader(`{"endpoint":"http://push.example/subscription","keys":{"p256dh":"bad","auth":"bad"}}`))
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	a.routes().ServeHTTP(response, request)
+
+	if response.Code != http.StatusBadRequest || len(push.subscriptions) != 0 {
+		t.Fatalf("status = %d, subscriptions = %+v", response.Code, push.subscriptions)
 	}
 }
 

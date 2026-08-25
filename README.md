@@ -13,6 +13,16 @@ LISTEN_ADDR=:8080 DATABASE_PATH=./data/momo-poo.db APP_TIMEZONE=Local go run .
 
 Open <http://localhost:8080>. The health endpoint is available at <http://localhost:8080/healthz>.
 
+## iPhone Notifications
+
+On iOS 16.4 or later, open the application from its public HTTPS URL in Safari, use **Share > Add to Home Screen**, and launch Momo from the new Home Screen icon. Tap **Enable notifications** in the application and accept the iOS permission prompt.
+
+Every trip created from either the web page or API sends a notification to every subscribed iPhone. A trip remains successfully recorded if Apple's push service is temporarily unavailable. Expired subscriptions are removed automatically.
+
+Web Push does not work from a normal Safari tab or over a plain LAN HTTP URL. Use the application's HTTPS Cloudflare Tunnel URL when installing it. Each iPhone must opt in separately.
+
+The application generates its VAPID identity on first startup and stores it in the SQLite database. Keep the existing data-volume backup to retain notification subscriptions and identity; replacing the database requires each iPhone to enable notifications again.
+
 ## API
 
 Create a trip that included a poo:
@@ -60,6 +70,7 @@ The application has no authentication. Writes are limited to 50 requests per obs
 | `APP_TIMEZONE` | `Local` | IANA timezone used for display and `days` boundaries, such as `America/New_York`. |
 | `WRITE_LIMIT_PER_DAY` | `50` | Trip creation and deletion attempts allowed per client IP and local day. |
 | `READ_LIMIT_PER_MINUTE` | `60` | API list requests allowed per client IP and minute. |
+| `VAPID_SUBJECT` | `mailto:momo@localhost` | Web Push VAPID contact URI, normally a `mailto:` address you control. |
 | `HOST_PORT` | `8090` | Compose-only host port published for the application. |
 
 ## Docker Compose

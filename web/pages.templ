@@ -16,8 +16,14 @@ templ layout(title string, activePath string) {
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<meta name="theme-color" content="#f6efe1"/>
+			<meta name="apple-mobile-web-app-capable" content="yes"/>
+			<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+			<meta name="apple-mobile-web-app-title" content="Momo"/>
 			<title>{ title }</title>
+			<link rel="manifest" href="/static/manifest.webmanifest"/>
+			<link rel="apple-touch-icon" href="/static/apple-touch-icon.png"/>
 			<link rel="stylesheet" href="/static/app.css"/>
+			<script src="/static/app.js" defer></script>
 		</head>
 		<body>
 			<a class="skip-link" href="#main-content">Skip to content</a>
@@ -54,6 +60,13 @@ templ HomePage(data HomePageData) {
 				<div><strong>Trip logged</strong><span>{ data.SuccessMessage }</span></div>
 			</div>
 		}
+		<section class="notification-panel" data-push-panel hidden aria-labelledby="notification-heading">
+			<div>
+				<strong id="notification-heading">Trip notifications</strong>
+				<span data-push-status>Get an alert whenever someone logs a trip.</span>
+			</div>
+			<button type="button" data-push-toggle>Enable notifications</button>
+		</section>
 		<section class="trip-actions" aria-label="Log Momo's bathroom trip">
 			<form method="post" action="/trips">
 				<input type="hidden" name="has_poo" value="true"/>

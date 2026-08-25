@@ -6,6 +6,7 @@ services:
     environment:
       TZ: "America/Los_Angeles"
       APP_TIMEZONE: "America/Los_Angeles"
+      VAPID_SUBJECT: "mailto:momo@localhost"
     ports:
       - "8090:8080"
     volumes:
