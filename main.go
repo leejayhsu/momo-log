@@ -5,10 +5,12 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -110,14 +112,34 @@ func loadConfig() (config, error) {
 	if err != nil {
 		return config{}, err
 	}
+	vapidSubject := envOr("VAPID_SUBJECT", "https://github.com/leejayhsu/momo-poo")
+	if !validVAPIDSubject(vapidSubject) {
+		return config{}, errors.New("VAPID_SUBJECT must be a public HTTPS URL or mailto address")
+	}
 	return config{
 		listenAddr:   envOr("LISTEN_ADDR", ":8080"),
 		databasePath: envOr("DATABASE_PATH", "./data/momo-poo.db"),
 		location:     location,
 		writeLimit:   writeLimit,
 		readLimit:    readLimit,
-		vapidSubject: envOr("VAPID_SUBJECT", "mailto:momo@localhost"),
+		vapidSubject: vapidSubject,
 	}, nil
+}
+
+func validVAPIDSubject(value string) bool {
+	subject, err := url.Parse(value)
+	if err != nil {
+		return false
+	}
+	switch subject.Scheme {
+	case "https":
+		return subject.Hostname() != "" && subject.Hostname() != "localhost"
+	case "mailto":
+		at := strings.LastIndexByte(subject.Opaque, '@')
+		return at > 0 && strings.Contains(subject.Opaque[at+1:], ".")
+	default:
+		return false
+	}
 }
 
 func envOr(name, fallback string) string {

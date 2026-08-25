@@ -6,7 +6,7 @@ services:
     environment:
       TZ: "America/Los_Angeles"
       APP_TIMEZONE: "America/Los_Angeles"
-      VAPID_SUBJECT: "mailto:momo@localhost"
+      VAPID_SUBJECT: "https://github.com/leejayhsu/momo-poo"
     ports:
       - "8090:8080"
     volumes:

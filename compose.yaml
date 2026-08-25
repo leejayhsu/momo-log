@@ -9,7 +9,7 @@ services:
       APP_TIMEZONE: ${APP_TIMEZONE:-Local}
       WRITE_LIMIT_PER_DAY: ${WRITE_LIMIT_PER_DAY:-50}
       READ_LIMIT_PER_MINUTE: ${READ_LIMIT_PER_MINUTE:-60}
-      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:momo@localhost}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-https://github.com/leejayhsu/momo-poo}
     ports:
       - "${HOST_PORT:-8090}:8080"
     volumes:

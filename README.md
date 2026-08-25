@@ -70,7 +70,7 @@ The application has no authentication. Writes are limited to 50 requests per obs
 | `APP_TIMEZONE` | `Local` | IANA timezone used for display and `days` boundaries, such as `America/New_York`. |
 | `WRITE_LIMIT_PER_DAY` | `50` | Trip creation and deletion attempts allowed per client IP and local day. |
 | `READ_LIMIT_PER_MINUTE` | `60` | API list requests allowed per client IP and minute. |
-| `VAPID_SUBJECT` | `mailto:momo@localhost` | Web Push VAPID contact URI, normally a `mailto:` address you control. |
+| `VAPID_SUBJECT` | `https://github.com/leejayhsu/momo-poo` | Public HTTPS or `mailto:` contact URI used in Web Push authentication. |
 | `HOST_PORT` | `8090` | Compose-only host port published for the application. |
 
 ## Docker Compose
