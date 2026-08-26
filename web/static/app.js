@@ -1,5 +1,32 @@
 (() => {
   const scrollKey = "momo-page-scroll";
+  const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+  let switchLabel;
+  const haptic = () => {
+    if (!isStandalone) return;
+    if (typeof navigator.vibrate === "function") {
+      navigator.vibrate(35);
+      return;
+    }
+
+    if (!switchLabel) {
+      const switchID = "momo-haptic-switch";
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.id = switchID;
+      input.setAttribute("switch", "");
+      input.setAttribute("aria-hidden", "true");
+      input.tabIndex = -1;
+      input.style.cssText = "position:fixed;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none";
+
+      switchLabel = document.createElement("label");
+      switchLabel.htmlFor = switchID;
+      switchLabel.setAttribute("aria-hidden", "true");
+      switchLabel.style.cssText = "position:fixed;left:-9999px;width:1px;height:1px;overflow:hidden";
+      document.body.append(input, switchLabel);
+    }
+    switchLabel.click();
+  };
   const url = new URL(window.location.href);
   if (url.searchParams.has("recorded")) {
     url.searchParams.delete("recorded");
@@ -16,6 +43,10 @@
 
   document.querySelectorAll('.trip-actions form[action="/trips"]').forEach((form) => {
     form.addEventListener("submit", () => sessionStorage.setItem(scrollKey, String(window.scrollY)));
+  });
+
+  document.addEventListener("click", (event) => {
+    if (event.target.closest('.trip-actions form[action="/trips"] button[type="submit"], .delete-trip-trigger, [data-delete-trip]')) haptic();
   });
 })();
 
