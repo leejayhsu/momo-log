@@ -44,6 +44,9 @@ templ layout(title string, activePath string) {
 					<nav class="primary-nav" aria-label="Primary navigation">
 						<a href="/" class={ navClass(activePath == "/") } aria-current={ currentPage(activePath == "/") }>Logs</a>
 						<a href="/settings" class={ navClass(activePath == "/settings") + " nav-icon" } aria-current={ currentPage(activePath == "/settings") } aria-label="Settings" title="Settings">@settingsIcon()</a>
+						<form method="post" action="/logout" class="nav-signout">
+							<button type="submit" class="nav-link" aria-label="Sign out">Sign out</button>
+						</form>
 					</nav>
 				</header>
 				<main id="main-content">
