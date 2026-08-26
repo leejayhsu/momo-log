@@ -27,12 +27,12 @@ templ layout(title string, activePath string) {
 			<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
 			<meta name="apple-mobile-web-app-title" content="Momo Poo"/>
 			<title>{ title }</title>
-			<link rel="manifest" href="/static/manifest.webmanifest"/>
-			<link rel="apple-touch-icon" href="/static/apple-touch-icon.png"/>
-			<link rel="stylesheet" href="/static/shadcn.css"/>
-			<link rel="stylesheet" href="/static/app.css"/>
+			<link rel="manifest" href={ staticURL("manifest.webmanifest") }/>
+			<link rel="apple-touch-icon" href={ staticURL("apple-touch-icon.png") }/>
+			<link rel="stylesheet" href={ staticURL("shadcn.css") }/>
+			<link rel="stylesheet" href={ staticURL("app.css") }/>
 			@components.Scripts()
-			<script src="/static/app.js" defer></script>
+			<script src={ staticURL("app.js") } defer></script>
 		</head>
 		<body>
 			<a class="skip-link" href="#main-content">Skip to content</a>
@@ -68,10 +68,10 @@ templ authLayout(title string) {
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<meta name="theme-color" content="#f6efe1"/>
 			<title>{ title }</title>
-			<link rel="stylesheet" href="/static/shadcn.css"/>
-			<link rel="stylesheet" href="/static/app.css"/>
+			<link rel="stylesheet" href={ staticURL("shadcn.css") }/>
+			<link rel="stylesheet" href={ staticURL("app.css") }/>
 			@components.Scripts()
-			<script src="/static/app.js" defer></script>
+			<script src={ staticURL("app.js") } defer></script>
 		</head>
 		<body>
 			<main class="auth-shell">
@@ -121,7 +121,7 @@ templ HomePage(data HomePageData) {
 		<section class="hero" aria-labelledby="log-heading">
 			<h1 id="log-heading" class="sr-only">Log Momo's bathroom trip</h1>
 			<div class="hero-title" aria-hidden="true"><span>POOP</span><span>TIME</span></div>
-			<img class="hero-animation" src="/static/animations/momo-poo-loop.webp" alt="" width="512" height="512"/>
+			<img class="hero-animation" src={ staticURL("animations/momo-poo-loop.webp") } alt="" width="512" height="512"/>
 		</section>
 		if data.SuccessMessage != "" {
 			@toast.Toast(toast.Props{
