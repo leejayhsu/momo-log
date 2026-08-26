@@ -4,8 +4,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/templui/templui/components/button"
-	"github.com/templui/templui/components/card"
+	templpkg "github.com/a-h/templ"
+
+	"momo-poo/components/button"
+	"momo-poo/components/card"
 )
 
 templ layout(title string, activePath string) {
@@ -22,6 +24,7 @@ templ layout(title string, activePath string) {
 			<title>{ title }</title>
 			<link rel="manifest" href="/static/manifest.webmanifest"/>
 			<link rel="apple-touch-icon" href="/static/apple-touch-icon.png"/>
+			<link rel="stylesheet" href="/static/shadcn.css"/>
 			<link rel="stylesheet" href="/static/app.css"/>
 			<script src="/static/app.js" defer></script>
 		</head>
@@ -63,7 +66,7 @@ templ HomePage(data HomePageData) {
 		<section class="trip-actions" aria-label="Log Momo's bathroom trip">
 			<form method="post" action="/trips">
 				<input type="hidden" name="has_poo" value="true"/>
-				@button.Button(button.Props{Type: button.TypeSubmit, Class: "trip-button trip-button-poo", FullWidth: true}) {
+				@button.Button(button.Props{Type: button.TypeSubmit, Class: "trip-button trip-button-poo"}) {
 					<span class="trip-icon" aria-hidden="true">@pooIcon()</span>
 					<span class="trip-label">Poo</span>
 					<span class="trip-hint">Pee + poo</span>
@@ -71,7 +74,7 @@ templ HomePage(data HomePageData) {
 			</form>
 			<form method="post" action="/trips">
 				<input type="hidden" name="has_poo" value="false"/>
-				@button.Button(button.Props{Type: button.TypeSubmit, Class: "trip-button trip-button-pee", FullWidth: true}) {
+				@button.Button(button.Props{Type: button.TypeSubmit, Class: "trip-button trip-button-pee"}) {
 					<span class="trip-icon" aria-hidden="true">@dropIcon()</span>
 					<span class="trip-label">No poo</span>
 					<span class="trip-hint">Pee only</span>
@@ -79,26 +82,28 @@ templ HomePage(data HomePageData) {
 			</form>
 		</section>
 		<section class="home-grid" aria-label="Today's activity">
-			@card.Card(card.Props{Class: "panel summary-card"}) {
-				@card.Header(card.HeaderProps{Class: "panel-header"}) {
-					@card.Title(card.TitleProps{Class: "panel-title"}) { Today }
-					@card.Description(card.DescriptionProps{Class: "panel-kicker"}) { { homeDate(data.Now) } }
+			@card.Card() {
+				@card.Header() {
+					@card.Title() { Today }
+					@card.Description() { { homeDate(data.Now) } }
 				}
-				@card.Content(card.ContentProps{Class: "summary-content"}) {
-					<div class="summary-total"><strong>{ strconv.Itoa(data.TodayTrips) }</strong><span>trips outside</span></div>
-					<div class="summary-breakdown">
-						<div><span class="dot dot-poo"></span><strong>{ strconv.Itoa(data.TodayPoos) }</strong><span>with poo</span></div>
-						<div><span class="dot dot-pee"></span><strong>{ strconv.Itoa(data.TodayNoPoos()) }</strong><span>pee only</span></div>
+				@card.Content() {
+					<div class="summary-content">
+						<div class="summary-total"><strong>{ strconv.Itoa(data.TodayTrips) }</strong><span>trips outside</span></div>
+						<div class="summary-breakdown">
+							<div><span class="dot dot-poo"></span><strong>{ strconv.Itoa(data.TodayPoos) }</strong><span>with poo</span></div>
+							<div><span class="dot dot-pee"></span><strong>{ strconv.Itoa(data.TodayNoPoos()) }</strong><span>pee only</span></div>
+						</div>
 					</div>
 				}
 			}
-			@card.Card(card.Props{Class: "panel recent-card"}) {
-				@card.Header(card.HeaderProps{Class: "panel-header"}) {
-					@card.Title(card.TitleProps{Class: "panel-title"}) { Recent trips }
-					@card.Description(card.DescriptionProps{Class: "panel-kicker"}) { Latest check-ins }
+			@card.Card() {
+				@card.Header() {
+					@card.Title() { Recent trips }
+					@card.Description() { Latest check-ins }
 				}
-				@card.Content(card.ContentProps{Class: "recent-content"}) {
-					@tripList(data.RecentTrips, 5)
+				@card.Content() {
+					<div class="recent-content">@tripList(data.RecentTrips, 5)</div>
 				}
 			}
 		</section>
@@ -111,21 +116,25 @@ templ SettingsPage() {
 			<div class="eyebrow">Preferences</div>
 			<h1 id="settings-heading">Settings</h1>
 			<p>Manage how Momo keeps you updated.</p>
-			@card.Card(card.Props{Class: "panel settings-card"}) {
-				@card.Header(card.HeaderProps{Class: "panel-header"}) {
-					@card.Title(card.TitleProps{Class: "panel-title"}) { Notifications }
-					@card.Description(card.DescriptionProps{Class: "panel-kicker"}) { Trip alerts on this device }
-				}
-				@card.Content(card.ContentProps{Class: "settings-content"}) {
-					<section class="notification-panel" data-push-panel hidden aria-labelledby="notification-heading">
-						<div>
-							<strong id="notification-heading">Trip notifications</strong>
-							<span data-push-status>Get an alert whenever someone logs a trip.</span>
+			<div class="settings-card">
+				@card.Card() {
+					@card.Header() {
+						@card.Title() { Notifications }
+						@card.Description() { Trip alerts on this device }
+					}
+					@card.Content() {
+						<div class="settings-content">
+							<section class="notification-panel" data-push-panel hidden aria-labelledby="notification-heading">
+								<div>
+									<strong id="notification-heading">Trip notifications</strong>
+									<span data-push-status>Get an alert whenever someone logs a trip.</span>
+								</div>
+								@button.Button(button.Props{Attributes: templpkg.Attributes{"data-push-toggle": true}}) { Enable notifications }
+							</section>
 						</div>
-						<button type="button" data-push-toggle>Enable notifications</button>
-					</section>
+					}
 				}
-			}
+			</div>
 		</section>
 	}
 }

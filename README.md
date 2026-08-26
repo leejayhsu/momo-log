@@ -2,16 +2,24 @@
 
 Momo Poo is a small Go web application for recording Momo's bathroom trips. Every event represents a trip outside and records whether the trip included a poo.
 
-## Local Development
+## Local Development Without Docker
 
 Go 1.26 or newer is required.
 
+Install `templ` and the Tailwind CSS v4.1+ standalone CLI, then regenerate UI assets after changing templates or styles:
+
 ```sh
-mkdir -p data
-LISTEN_ADDR=:8080 DATABASE_PATH=./data/momo-poo.db APP_TIMEZONE=Local go run .
+go install github.com/a-h/templ/cmd/templ@latest
+templ generate
+tailwindcss -i ./web/static/globals.css -o ./web/static/shadcn.css --minify
 ```
 
-Open <http://localhost:8080>. The health endpoint is available at <http://localhost:8080/healthz>.
+```sh
+mkdir -p data
+LISTEN_ADDR=:8081 DATABASE_PATH=./data/momo-poo.db APP_TIMEZONE=Local go run .
+```
+
+This runs the same application directly on the host and is the quickest alternative to Docker Compose for local testing. Open <http://localhost:8080>. The health endpoint is available at <http://localhost:8080/healthz>. Stop the server with `Ctrl+C`; the local SQLite database remains in `./data/momo-poo.db`.
 
 ## iPhone Notifications
 
