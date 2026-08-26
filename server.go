@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"momo-poo/components"
+	"momo-poo/internal/auth"
 	"momo-poo/internal/ratelimit"
 	"momo-poo/internal/store"
 	"momo-poo/internal/trips"
@@ -25,7 +26,7 @@ import (
 const maxLookbackDays = 366
 
 type tripStore interface {
-	Create(context.Context, bool) (trips.Trip, error)
+	Create(context.Context, bool, int64) (trips.Trip, error)
 	Delete(context.Context, int64) (bool, error)
 	List(context.Context, time.Time, time.Time) ([]trips.Trip, error)
 	Ping(context.Context) error
@@ -45,6 +46,7 @@ type app struct {
 	readLimiter  *ratelimit.Limiter
 	now          func() time.Time
 	push         pushService
+	auth         *auth.Manager
 }
 
 func newApp(store tripStore, location *time.Location, writeLimiter, readLimiter *ratelimit.Limiter) *app {
@@ -53,15 +55,22 @@ func newApp(store tripStore, location *time.Location, writeLimiter, readLimiter 
 
 func (a *app) routes() http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /{$}", a.home)
-	mux.HandleFunc("GET /settings", a.settings)
-	mux.HandleFunc("POST /trips", a.createTripForm)
-	mux.HandleFunc("POST /api/v1/trips", a.createTripAPI)
-	mux.HandleFunc("GET /api/v1/trips", a.listTripsAPI)
-	mux.HandleFunc("DELETE /api/v1/trips/{id}", a.deleteTripAPI)
-	mux.HandleFunc("GET /api/v1/push-config", a.pushConfigAPI)
-	mux.HandleFunc("POST /api/v1/push-subscriptions", a.createPushSubscriptionAPI)
-	mux.HandleFunc("DELETE /api/v1/push-subscriptions", a.deletePushSubscriptionAPI)
+	mux.HandleFunc("GET /login", a.loginPage)
+	mux.HandleFunc("GET /register", a.registerPage)
+	mux.HandleFunc("POST /auth/register/begin", a.beginRegistration)
+	mux.HandleFunc("POST /auth/register/finish", a.finishRegistration)
+	mux.HandleFunc("POST /auth/login/begin", a.beginLogin)
+	mux.HandleFunc("POST /auth/login/finish", a.finishLogin)
+	mux.Handle("POST /logout", a.protected(http.HandlerFunc(a.logout)))
+	mux.Handle("GET /{$}", a.protected(http.HandlerFunc(a.home)))
+	mux.Handle("GET /settings", a.protected(http.HandlerFunc(a.settings)))
+	mux.Handle("POST /trips", a.protected(http.HandlerFunc(a.createTripForm)))
+	mux.Handle("POST /api/v1/trips", a.protected(http.HandlerFunc(a.createTripAPI)))
+	mux.Handle("GET /api/v1/trips", a.protected(http.HandlerFunc(a.listTripsAPI)))
+	mux.Handle("DELETE /api/v1/trips/{id}", a.protected(http.HandlerFunc(a.deleteTripAPI)))
+	mux.Handle("GET /api/v1/push-config", a.protected(http.HandlerFunc(a.pushConfigAPI)))
+	mux.Handle("POST /api/v1/push-subscriptions", a.protected(http.HandlerFunc(a.createPushSubscriptionAPI)))
+	mux.Handle("DELETE /api/v1/push-subscriptions", a.protected(http.HandlerFunc(a.deletePushSubscriptionAPI)))
 	mux.HandleFunc("GET /healthz", a.health)
 	mux.Handle("GET /components/{bundle}", components.ScriptsHandler())
 	mux.Handle("GET /sw.js", web.StaticHandler())
@@ -72,7 +81,7 @@ func (a *app) routes() http.Handler {
 func (a *app) settings(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := web.SettingsPage().Render(r.Context(), w); err != nil {
+	if err := web.SettingsPage(currentUser(r).Username).Render(r.Context(), w); err != nil {
 		log.Printf("render settings: %v", err)
 	}
 }
@@ -172,9 +181,16 @@ func (a *app) createTripAPI(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) createTrip(ctx context.Context, hasPoo bool) (trips.Trip, error) {
-	item, err := a.store.Create(ctx, hasPoo)
+	userID := int64(0)
+	if user, ok := ctx.Value(authUserKey{}).(*auth.User); ok {
+		userID = user.ID
+	}
+	item, err := a.store.Create(ctx, hasPoo, userID)
 	if err != nil {
 		return trips.Trip{}, err
+	}
+	if user, ok := ctx.Value(authUserKey{}).(*auth.User); ok {
+		item.Username = user.Username
 	}
 	if a.push != nil {
 		pushCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 8*time.Second)
@@ -398,13 +414,13 @@ func lookbackRange(now time.Time, days int, location *time.Location) (time.Time,
 func presentTrips(items []trips.Trip, location *time.Location) []web.Trip {
 	result := make([]web.Trip, 0, len(items))
 	for _, item := range items {
-		result = append(result, web.Trip{ID: item.ID, OccurredAt: item.OccurredAt.In(location), HasPoo: item.HasPoo})
+		result = append(result, web.Trip{ID: item.ID, OccurredAt: item.OccurredAt.In(location), HasPoo: item.HasPoo, Username: item.Username})
 	}
 	return result
 }
 
 func apiTrip(item trips.Trip) map[string]any {
-	return map[string]any{"id": item.ID, "occurred_at": item.OccurredAt.UTC().Format(time.RFC3339Nano), "has_poo": item.HasPoo}
+	return map[string]any{"id": item.ID, "occurred_at": item.OccurredAt.UTC().Format(time.RFC3339Nano), "has_poo": item.HasPoo, "username": item.Username}
 }
 
 func ensureJSONEnd(decoder *json.Decoder) error {

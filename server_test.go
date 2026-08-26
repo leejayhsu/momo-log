@@ -47,7 +47,7 @@ func (p *fakePush) NotifyTrip(_ context.Context, trip trips.Trip, _ *time.Locati
 	return p.err
 }
 
-func (s *fakeStore) Create(_ context.Context, hasPoo bool) (trips.Trip, error) {
+func (s *fakeStore) Create(_ context.Context, hasPoo bool, _ int64) (trips.Trip, error) {
 	if s.err != nil {
 		return trips.Trip{}, s.err
 	}

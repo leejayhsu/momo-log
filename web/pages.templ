@@ -56,6 +56,62 @@ templ layout(title string, activePath string) {
 	</html>
 }
 
+templ authLayout(title string) {
+	<!doctype html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<meta name="theme-color" content="#f6efe1"/>
+			<title>{ title }</title>
+			<link rel="stylesheet" href="/static/shadcn.css"/>
+			<link rel="stylesheet" href="/static/app.css"/>
+			@components.Scripts()
+			<script src="/static/app.js" defer></script>
+		</head>
+		<body>
+			<main class="auth-shell">
+				<a class="auth-brand" href="/login">@pawIcon()<span><strong>Momo</strong><small>outdoor log</small></span></a>
+				{ children... }
+			</main>
+		</body>
+	</html>
+}
+
+templ LoginPage(registrationEnabled bool) {
+	@authLayout("Sign in | Momo") {
+		<section class="auth-card" aria-labelledby="login-heading">
+			<div class="eyebrow">Welcome home</div>
+			<h1 id="login-heading">Sign in with your passkey</h1>
+			<p>No password needed. Use Face ID, Touch ID, your device PIN, or a security key.</p>
+			<div class="auth-action" data-passkey-login>
+				@button.Button(button.Props{Size: button.SizeLg, Class: "auth-button", Attributes: templpkg.Attributes{"data-passkey-submit": true}}) { Use a passkey }
+				<p class="auth-error" data-passkey-error role="alert" hidden></p>
+			</div>
+			if registrationEnabled {
+				<p class="auth-secondary">Need an account? <a href="/register">Create one while registration is open</a>.</p>
+			}
+		</section>
+	}
+}
+
+templ RegisterPage() {
+	@authLayout("Create account | Momo") {
+		<section class="auth-card" aria-labelledby="register-heading">
+			<div class="eyebrow">Household access</div>
+			<h1 id="register-heading">Create your account</h1>
+			<p>Choose the name shown beside trips you log. Your passkey is your only sign-in method.</p>
+			<form class="auth-action" data-passkey-register>
+				<label for="username">Username</label>
+				<input id="username" name="username" type="text" autocomplete="username webauthn" maxlength="64" required placeholder="Your name"/>
+				@button.Button(button.Props{Type: button.TypeSubmit, Size: button.SizeLg, Class: "auth-button", Attributes: templpkg.Attributes{"data-passkey-submit": true}}) { Create account with passkey }
+				<p class="auth-error" data-passkey-error role="alert" hidden></p>
+			</form>
+			<p class="auth-secondary"><a href="/login">Back to sign in</a></p>
+		</section>
+	}
+}
+
 templ HomePage(data HomePageData) {
 	@layout("Log a trip | Momo", "/") {
 		<section class="hero" aria-labelledby="log-heading">
@@ -121,7 +177,7 @@ templ HomePage(data HomePageData) {
 	}
 }
 
-templ SettingsPage() {
+templ SettingsPage(username string) {
 	@layout("Settings | Momo", "/settings") {
 		<section class="settings-page" aria-labelledby="settings-heading">
 			<div class="eyebrow">Preferences</div>
@@ -143,6 +199,19 @@ templ SettingsPage() {
 								@button.Button(button.Props{Attributes: templpkg.Attributes{"data-push-toggle": true}}) { Enable notifications }
 							</section>
 						</div>
+					}
+				}
+			</div>
+			<div class="settings-card account-card">
+				@card.Card() {
+					@card.Header() {
+						@card.Title() { Account }
+						@card.Description() { Signed in as { username } }
+					}
+					@card.Content() {
+						<form method="post" action="/logout" class="settings-content">
+							@button.Button(button.Props{Type: button.TypeSubmit, Variant: button.VariantOutline}) { Sign out }
+						</form>
 					}
 				}
 			</div>
@@ -178,7 +247,12 @@ templ tripList(trips []Trip, limit int) {
 								{ popover.Trigger(ctx)... }
 							>
 								<span class={ tripBadgeClass(trip.HasPoo) } aria-hidden="true">@tripTypeIcon(trip.HasPoo)</span>
-								<time datetime={ trip.OccurredAt.Format(time.RFC3339) }>{ trip.OccurredAt.Format("Mon, Jan 2 at 3:04 PM") }</time>
+								<span class="trip-details">
+									<time datetime={ trip.OccurredAt.Format(time.RFC3339) }>{ trip.OccurredAt.Format("Mon, Jan 2 at 3:04 PM") }</time>
+									if trip.Username != "" {
+										<small>Logged by { trip.Username }</small>
+									}
+								</span>
 							</button>
 							@popover.Content(popover.ContentProps{Class: "recent-trip-popover", Align: popover.AlignEnd}) {
 								@popover.Header() {

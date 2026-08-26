@@ -7,6 +7,9 @@ services:
       TZ: "America/Los_Angeles"
       APP_TIMEZONE: "America/Los_Angeles"
       VAPID_SUBJECT: "https://github.com/leejayhsu/momo-poo"
+      WEBAUTHN_ORIGIN: "${WEBAUTHN_ORIGIN:-http://localhost:8090}"
+      WEBAUTHN_RP_ID: "${WEBAUTHN_RP_ID:-localhost}"
+      WEBAUTHN_REGISTRATION_ENABLED: "${WEBAUTHN_REGISTRATION_ENABLED:-false}"
     ports:
       - "8090:8080"
     volumes:

@@ -7,6 +7,7 @@ type Trip struct {
 	ID         int64
 	OccurredAt time.Time
 	HasPoo     bool
+	Username   string
 }
 
 // HomePageData contains everything needed to render the trip logger.

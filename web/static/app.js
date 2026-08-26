@@ -20,6 +20,97 @@
 })();
 
 (() => {
+  const login = document.querySelector("[data-passkey-login]");
+  const register = document.querySelector("[data-passkey-register]");
+  if (!login && !register) return;
+
+  const root = login || register;
+  const button = root.querySelector("[data-passkey-submit]");
+  const error = root.querySelector("[data-passkey-error]");
+  const decode = (value) => {
+    const padding = "=".repeat((4 - value.length % 4) % 4);
+    const raw = atob((value + padding).replace(/-/g, "+").replace(/_/g, "/"));
+    return Uint8Array.from(raw, (character) => character.charCodeAt(0));
+  };
+  const encode = (value) => {
+    let raw = "";
+    for (const byte of new Uint8Array(value)) raw += String.fromCharCode(byte);
+    return btoa(raw).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  };
+  const creationOptions = (options) => {
+    const publicKey = options.publicKey;
+    publicKey.challenge = decode(publicKey.challenge);
+    publicKey.user.id = decode(publicKey.user.id);
+    publicKey.excludeCredentials = (publicKey.excludeCredentials || []).map((item) => ({ ...item, id: decode(item.id) }));
+    return publicKey;
+  };
+  const requestOptions = (options) => {
+    const publicKey = options.publicKey;
+    publicKey.challenge = decode(publicKey.challenge);
+    publicKey.allowCredentials = (publicKey.allowCredentials || []).map((item) => ({ ...item, id: decode(item.id) }));
+    return publicKey;
+  };
+  const credentialJSON = (credential) => {
+    const response = {
+      clientDataJSON: encode(credential.response.clientDataJSON),
+    };
+    if (credential.response.attestationObject) {
+      response.attestationObject = encode(credential.response.attestationObject);
+      response.transports = credential.response.getTransports?.() || [];
+    } else {
+      response.authenticatorData = encode(credential.response.authenticatorData);
+      response.signature = encode(credential.response.signature);
+      response.userHandle = credential.response.userHandle ? encode(credential.response.userHandle) : null;
+    }
+    return {
+      id: credential.id,
+      rawId: encode(credential.rawId),
+      type: credential.type,
+      authenticatorAttachment: credential.authenticatorAttachment,
+      clientExtensionResults: credential.getClientExtensionResults(),
+      response,
+    };
+  };
+  const post = async (url, body) => {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error?.message || "Passkey request failed.");
+    return result;
+  };
+  const run = async () => {
+    error.hidden = true;
+    button.disabled = true;
+    try {
+      if (!window.isSecureContext || !navigator.credentials || !window.PublicKeyCredential) {
+        throw new Error("Passkeys require HTTPS, or localhost during development.");
+      }
+      if (register) {
+        const username = register.elements.username.value.trim();
+        const options = await post("/auth/register/begin", { username });
+        const credential = await navigator.credentials.create({ publicKey: creationOptions(options) });
+        const result = await post("/auth/register/finish", credentialJSON(credential));
+        window.location.assign(result.redirect);
+      } else {
+        const options = await post("/auth/login/begin");
+        const credential = await navigator.credentials.get({ publicKey: requestOptions(options) });
+        const result = await post("/auth/login/finish", credentialJSON(credential));
+        window.location.assign(result.redirect);
+      }
+    } catch (cause) {
+      error.textContent = cause.name === "NotAllowedError" ? "Passkey request canceled or timed out." : cause.message;
+      error.hidden = false;
+      button.disabled = false;
+    }
+  };
+  if (register) register.addEventListener("submit", (event) => { event.preventDefault(); run(); });
+  else button.addEventListener("click", run);
+})();
+
+(() => {
   document.addEventListener("click", async (event) => {
     const action = event.target.closest("[data-delete-trip]");
     if (!action) return;

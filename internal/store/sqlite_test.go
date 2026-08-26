@@ -5,7 +5,31 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/go-webauthn/webauthn/webauthn"
+
+	"momo-poo/internal/auth"
 )
+
+func TestTripAttribution(t *testing.T) {
+	s := openTestStore(t, filepath.Join(t.TempDir(), "trips.db"))
+	ctx := context.Background()
+	user := &auth.User{Username: "Lee", Handle: []byte("stable-user-handle")}
+	if err := s.AuthCreateUser(ctx, user, webauthn.Credential{ID: []byte("credential-id")}); err != nil {
+		t.Fatalf("AuthCreateUser() error = %v", err)
+	}
+	trip, err := s.Create(ctx, true, user.ID)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	items, err := s.List(ctx, trip.OccurredAt.Add(-time.Millisecond), trip.OccurredAt.Add(time.Millisecond))
+	if err != nil {
+		t.Fatalf("List() error = %v", err)
+	}
+	if len(items) != 1 || items[0].Username != "Lee" {
+		t.Fatalf("List() = %+v, want trip attributed to Lee", items)
+	}
+}
 
 func openTestStore(t *testing.T, path string) *SQLite {
 	t.Helper()
@@ -26,7 +50,7 @@ func TestCreateUsesServerTimeAtMillisecondResolution(t *testing.T) {
 	wantTime := time.Date(2026, time.August, 25, 12, 34, 56, 789_654_321, time.FixedZone("test", -7*60*60))
 	s.now = func() time.Time { return wantTime }
 
-	trip, err := s.Create(context.Background(), true)
+	trip, err := s.Create(context.Background(), true, 0)
 	if err != nil {
 		t.Fatalf("Create() error = %v", err)
 	}
@@ -58,7 +82,7 @@ func TestListUsesHalfOpenBoundsAndNewestFirstOrder(t *testing.T) {
 
 	create := func(at time.Time, hasPoo bool) int64 {
 		t.Helper()
-		trip, err := s.create(ctx, at, hasPoo)
+		trip, err := s.create(ctx, at, hasPoo, 0)
 		if err != nil {
 			t.Fatalf("create(%v, %t) error = %v", at, hasPoo, err)
 		}
@@ -92,7 +116,7 @@ func TestListHonorsSubMillisecondBounds(t *testing.T) {
 	s := openTestStore(t, filepath.Join(t.TempDir(), "trips.db"))
 	ctx := context.Background()
 	at := time.Date(2026, time.August, 25, 8, 0, 0, 123_000_000, time.UTC)
-	if _, err := s.create(ctx, at, false); err != nil {
+	if _, err := s.create(ctx, at, false, 0); err != nil {
 		t.Fatalf("create() error = %v", err)
 	}
 
@@ -108,11 +132,11 @@ func TestListHonorsSubMillisecondBounds(t *testing.T) {
 func TestDelete(t *testing.T) {
 	s := openTestStore(t, filepath.Join(t.TempDir(), "trips.db"))
 	ctx := context.Background()
-	keep, err := s.create(ctx, time.Date(2026, time.August, 25, 8, 0, 0, 0, time.UTC), false)
+	keep, err := s.create(ctx, time.Date(2026, time.August, 25, 8, 0, 0, 0, time.UTC), false, 0)
 	if err != nil {
 		t.Fatalf("create keep trip: %v", err)
 	}
-	remove, err := s.create(ctx, keep.OccurredAt.Add(time.Minute), true)
+	remove, err := s.create(ctx, keep.OccurredAt.Add(time.Minute), true, 0)
 	if err != nil {
 		t.Fatalf("create removable trip: %v", err)
 	}
@@ -176,7 +200,7 @@ func TestPersistenceAcrossReopen(t *testing.T) {
 	if err != nil {
 		t.Fatalf("first Open() error = %v", err)
 	}
-	want, err := s.create(ctx, time.Date(2026, time.August, 25, 9, 10, 11, 456_000_000, time.UTC), true)
+	want, err := s.create(ctx, time.Date(2026, time.August, 25, 9, 10, 11, 456_000_000, time.UTC), true, 0)
 	if err != nil {
 		t.Fatalf("create() error = %v", err)
 	}

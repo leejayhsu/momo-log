@@ -10,6 +10,9 @@ services:
       WRITE_LIMIT_PER_DAY: ${WRITE_LIMIT_PER_DAY:-50}
       READ_LIMIT_PER_MINUTE: ${READ_LIMIT_PER_MINUTE:-60}
       VAPID_SUBJECT: ${VAPID_SUBJECT:-https://github.com/leejayhsu/momo-poo}
+      WEBAUTHN_ORIGIN: ${WEBAUTHN_ORIGIN:-http://localhost:8090}
+      WEBAUTHN_RP_ID: ${WEBAUTHN_RP_ID:-localhost}
+      WEBAUTHN_REGISTRATION_ENABLED: ${WEBAUTHN_REGISTRATION_ENABLED:-false}
     ports:
       - "${HOST_PORT:-8090}:8080"
     volumes:

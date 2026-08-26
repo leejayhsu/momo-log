@@ -57,7 +57,7 @@ Create a trip that included a poo:
 
 ```sh
 curl --fail-with-body \
-  -X POST http://localhost:8080/api/v1/trips \
+  -X POST http://localhost:7331/api/v1/trips \
   -H 'Content-Type: application/json' \
   -d '{"has_poo":true}'
 ```
@@ -66,7 +66,7 @@ Create a trip that did not include a poo:
 
 ```sh
 curl --fail-with-body \
-  -X POST http://localhost:8080/api/v1/trips \
+  -X POST http://localhost:7331/api/v1/trips \
   -H 'Content-Type: application/json' \
   -d '{"has_poo":false}'
 ```
@@ -74,31 +74,34 @@ curl --fail-with-body \
 List today's trips:
 
 ```sh
-curl --fail-with-body 'http://localhost:8080/api/v1/trips?days=1'
+curl --fail-with-body 'http://localhost:7331/api/v1/trips?days=1'
 ```
 
 Delete a trip by its ID:
 
 ```sh
-curl --fail-with-body -X DELETE http://localhost:8080/api/v1/trips/123
+curl --fail-with-body -X DELETE http://localhost:7331/api/v1/trips/123
 ```
 
-A successful deletion returns `204 No Content`; an ID that does not exist returns `404 Not Found`.
+A successful deletion returns `204 No Content`; an ID that does not exist returns `404 Not Found`. API requests use the same 90-day browser session as the web UI. A future unattended Home Assistant integration will need a separate service token rather than a passkey ceremony.
 
 `days` is the number of local calendar days to include, including today. For example, `days=1` returns only the current day and `days=7` returns today plus the previous six days. Calendar boundaries use `APP_TIMEZONE`.
 
-The application has no authentication. Writes are limited to 50 requests per observed source address per local day and reads to 60 requests per observed source address per minute by default. Requests through one reverse proxy or Cloudflare Tunnel intentionally share a bucket. These limits are abuse protection, not access control; use a Cloudflare Access policy if the tunnel should be private.
+The application uses passkeys only. Login is discoverable, so users do not type a username when signing in; their device presents the available passkeys. Session cookies last 90 days. Writes are limited to 50 requests per observed source address per local day and reads to 60 requests per observed source address per minute by default. Requests through one reverse proxy or Cloudflare Tunnel intentionally share a bucket.
 
 ## Configuration
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `LISTEN_ADDR` | `:8080` | Address and port used by the HTTP server. |
+| `LISTEN_ADDR` | `:7331` | Address and port used by the HTTP server. Compose overrides this to `:8080`. |
 | `DATABASE_PATH` | `./data/momo-poo.db` | SQLite database path. Compose sets this to `/data/momo-poo.db`. |
 | `APP_TIMEZONE` | `Local` | IANA timezone used for display and `days` boundaries, such as `America/New_York`. |
 | `WRITE_LIMIT_PER_DAY` | `50` | Trip creation and deletion attempts allowed per client IP and local day. |
 | `READ_LIMIT_PER_MINUTE` | `60` | API list requests allowed per client IP and minute. |
 | `VAPID_SUBJECT` | `https://github.com/leejayhsu/momo-poo` | Public HTTPS or `mailto:` contact URI used in Web Push authentication. |
+| `WEBAUTHN_ORIGIN` | `http://localhost:7331` | Exact browser origin used for passkeys. Use the public HTTPS Cloudflare URL in deployment, with no trailing slash or path. |
+| `WEBAUTHN_RP_ID` | Hostname from `WEBAUTHN_ORIGIN` | Passkey relying-party hostname, without a scheme or port. |
+| `WEBAUTHN_REGISTRATION_ENABLED` | `false` | Set to `true` only while creating household accounts. Existing users can still sign in when it is `false`. |
 | `HOST_PORT` | `8090` | Compose-only host port published for the application. |
 
 ## Docker Compose
@@ -118,8 +121,19 @@ APP_TIMEZONE=America/New_York docker compose up --build -d
 The service publishes port `8090` on the host, making it reachable at `http://localhost:8090` and from a Cloudflare Tunnel configured to use `http://host-address:8090`. Set `HOST_PORT` to publish a different host port:
 
 ```sh
-HOST_PORT=8091 docker compose up --build -d
+HOST_PORT=8091 WEBAUTHN_ORIGIN=http://localhost:8091 docker compose up --build -d
 ```
+
+Passkeys require a secure browser context. `localhost` may use HTTP for local development; LAN IP addresses may not. For a Cloudflare Tunnel at `https://momo.example.com`, initially start with registration enabled:
+
+```sh
+WEBAUTHN_ORIGIN=https://momo.example.com \
+WEBAUTHN_RP_ID=momo.example.com \
+WEBAUTHN_REGISTRATION_ENABLED=true \
+docker compose up --build -d
+```
+
+Create both accounts from `/register`, then restart with `WEBAUTHN_REGISTRATION_ENABLED=false`. While registration is enabled, anyone who can reach the app can create an account, so keep that window short. Usernames are display names and do not need to be email addresses. Changing `WEBAUTHN_RP_ID` later prevents existing passkeys from being used, so keep it stable.
 
 Compose bind-mounts `./data` to `/data` in the container. The SQLite database therefore remains on the Docker host at `./data/momo-poo.db` when the container is replaced or removed. Back up the `data` directory to preserve event history.
 
