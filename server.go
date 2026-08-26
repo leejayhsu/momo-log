@@ -53,9 +53,8 @@ func newApp(store tripStore, location *time.Location, writeLimiter, readLimiter 
 func (a *app) routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", a.home)
+	mux.HandleFunc("GET /settings", a.settings)
 	mux.HandleFunc("POST /trips", a.createTripForm)
-	mux.HandleFunc("POST /trips/{id}/delete", a.deleteTripForm)
-	mux.HandleFunc("GET /history", a.history)
 	mux.HandleFunc("POST /api/v1/trips", a.createTripAPI)
 	mux.HandleFunc("GET /api/v1/trips", a.listTripsAPI)
 	mux.HandleFunc("DELETE /api/v1/trips/{id}", a.deleteTripAPI)
@@ -66,6 +65,13 @@ func (a *app) routes() http.Handler {
 	mux.Handle("GET /sw.js", web.StaticHandler())
 	mux.Handle("GET /static/", http.StripPrefix("/static/", web.StaticHandler()))
 	return securityHeaders(recoverRequests(logRequests(mux)))
+}
+
+func (a *app) settings(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	if err := web.SettingsPage().Render(r.Context(), w); err != nil {
+		log.Printf("render settings: %v", err)
+	}
 }
 
 func (a *app) home(w http.ResponseWriter, r *http.Request) {
@@ -124,60 +130,6 @@ func (a *app) createTripForm(w http.ResponseWriter, r *http.Request) {
 		recorded = "poo"
 	}
 	http.Redirect(w, r, "/?recorded="+recorded, http.StatusSeeOther)
-}
-
-func (a *app) deleteTripForm(w http.ResponseWriter, r *http.Request) {
-	if !a.allow(w, r, a.writeLimiter) {
-		a.renderError(w, r, http.StatusTooManyRequests, "Too many changes", "The daily change limit has been reached. Try again tomorrow.")
-		return
-	}
-	id, err := parseTripID(r)
-	if err != nil {
-		a.renderError(w, r, http.StatusBadRequest, "Invalid trip", err.Error())
-		return
-	}
-	days, err := parseDays(r, 7)
-	if err != nil {
-		a.renderError(w, r, http.StatusBadRequest, "Invalid date range", err.Error())
-		return
-	}
-	deleted, err := a.store.Delete(r.Context(), id)
-	if err != nil {
-		a.renderError(w, r, http.StatusInternalServerError, "Could not delete this trip", "Please try again in a moment.")
-		return
-	}
-	if !deleted {
-		a.renderError(w, r, http.StatusNotFound, "Trip not found", "This trip may have already been deleted.")
-		return
-	}
-	http.Redirect(w, r, "/history?days="+strconv.Itoa(days), http.StatusSeeOther)
-}
-
-func (a *app) history(w http.ResponseWriter, r *http.Request) {
-	if !a.allow(w, r, a.readLimiter) {
-		a.renderError(w, r, http.StatusTooManyRequests, "Too many refreshes", "Please wait a minute and try again.")
-		return
-	}
-	days, err := parseDays(r, 7)
-	if err != nil {
-		a.renderError(w, r, http.StatusBadRequest, "Invalid date range", err.Error())
-		return
-	}
-	now := a.now()
-	start, end := lookbackRange(now, days, a.location)
-	items, err := a.store.List(r.Context(), start, end)
-	if err != nil {
-		a.renderError(w, r, http.StatusInternalServerError, "Could not load history", "Please try again in a moment.")
-		return
-	}
-	data := web.HistoryPageData{
-		Days: days, DaySummaries: summarizeDays(items, now, days, a.location),
-		RecentTrips: presentTrips(items, a.location),
-	}
-	w.Header().Set("Cache-Control", "no-store")
-	if err := web.HistoryPage(data).Render(r.Context(), w); err != nil {
-		log.Printf("render history: %v", err)
-	}
 }
 
 func (a *app) createTripAPI(w http.ResponseWriter, r *http.Request) {
@@ -432,31 +384,6 @@ func lookbackRange(now time.Time, days int, location *time.Location) (time.Time,
 	local := now.In(location)
 	start := time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, location).AddDate(0, 0, -(days - 1))
 	return start.UTC(), now.UTC()
-}
-
-func summarizeDays(items []trips.Trip, now time.Time, days int, location *time.Location) []web.DaySummary {
-	local := now.In(location)
-	today := time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, location)
-	summaries := make([]web.DaySummary, days)
-	byDate := make(map[string]int, days)
-	for i := range days {
-		date := today.AddDate(0, 0, i-(days-1))
-		summaries[i].Date = date
-		byDate[date.Format("2006-01-02")] = i
-	}
-	for _, item := range items {
-		i, ok := byDate[item.OccurredAt.In(location).Format("2006-01-02")]
-		if !ok {
-			continue
-		}
-		summaries[i].Trips++
-		if item.HasPoo {
-			summaries[i].Poos++
-		} else {
-			summaries[i].NoPoos++
-		}
-	}
-	return summaries
 }
 
 func presentTrips(items []trips.Trip, location *time.Location) []web.Trip {

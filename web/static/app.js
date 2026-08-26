@@ -6,9 +6,12 @@
   const toggle = panel.querySelector("[data-push-toggle]");
   const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) ||
     (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  if (!isIOS) return;
-
   panel.hidden = false;
+  if (!isIOS) {
+    status.textContent = "Notifications are currently available when Momo is installed on an iPhone.";
+    toggle.hidden = true;
+    return;
+  }
   if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
     status.textContent = "Notifications require iOS 16.4 or later.";
     toggle.hidden = true;

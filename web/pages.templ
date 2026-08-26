@@ -1,7 +1,6 @@
 package web
 
 import (
-	"fmt"
 	"strconv"
 	"time"
 
@@ -35,8 +34,8 @@ templ layout(title string, activePath string) {
 						<span><strong>Momo</strong><small>outdoor log</small></span>
 					</a>
 					<nav class="primary-nav" aria-label="Primary navigation">
-						<a href="/" class={ navClass(activePath == "/") } aria-current={ currentPage(activePath == "/") }>Log trip</a>
-						<a href="/history" class={ navClass(activePath == "/history") } aria-current={ currentPage(activePath == "/history") }>History</a>
+						<a href="/" class={ navClass(activePath == "/") } aria-current={ currentPage(activePath == "/") }>Logs</a>
+						<a href="/settings" class={ navClass(activePath == "/settings") + " nav-icon" } aria-current={ currentPage(activePath == "/settings") } aria-label="Settings" title="Settings">@settingsIcon()</a>
 					</nav>
 				</header>
 				<main id="main-content">
@@ -61,13 +60,6 @@ templ HomePage(data HomePageData) {
 				<div><strong>Trip logged</strong><span>{ data.SuccessMessage }</span></div>
 			</div>
 		}
-		<section class="notification-panel" data-push-panel hidden aria-labelledby="notification-heading">
-			<div>
-				<strong id="notification-heading">Trip notifications</strong>
-				<span data-push-status>Get an alert whenever someone logs a trip.</span>
-			</div>
-			<button type="button" data-push-toggle>Enable notifications</button>
-		</section>
 		<section class="trip-actions" aria-label="Log Momo's bathroom trip">
 			<form method="post" action="/trips">
 				<input type="hidden" name="has_poo" value="true"/>
@@ -101,71 +93,40 @@ templ HomePage(data HomePageData) {
 				}
 			}
 			@card.Card(card.Props{Class: "panel recent-card"}) {
-				@card.Header(card.HeaderProps{Class: "panel-header panel-header-row"}) {
-					<div>
-						@card.Title(card.TitleProps{Class: "panel-title"}) { Recent trips }
-						@card.Description(card.DescriptionProps{Class: "panel-kicker"}) { Latest check-ins }
-					</div>
-					<a class="text-link" href="/history">View history <span aria-hidden="true">&rarr;</span></a>
+				@card.Header(card.HeaderProps{Class: "panel-header"}) {
+					@card.Title(card.TitleProps{Class: "panel-title"}) { Recent trips }
+					@card.Description(card.DescriptionProps{Class: "panel-kicker"}) { Latest check-ins }
 				}
 				@card.Content(card.ContentProps{Class: "recent-content"}) {
-					@tripList(data.RecentTrips, 5, 0)
+					@tripList(data.RecentTrips, 5)
 				}
 			}
 		</section>
 	}
 }
 
-templ HistoryPage(data HistoryPageData) {
-	@layout("Trip history | Momo", "/history") {
-		<section class="history-heading">
-			<div>
-				<div class="eyebrow">Momo's rhythm</div>
-				<h1>Trip history</h1>
-				<p>Daily outings, split by what happened outside.</p>
-			</div>
-			<form class="range-form" method="get" action="/history">
-				<label for="days">Show</label>
-				<input id="days" name="days" type="number" min="1" max="366" value={ strconv.Itoa(data.Days) }/>
-				@button.Button(button.Props{Type: button.TypeSubmit, Class: "range-button"}) { Update }
-			</form>
-		</section>
-		@card.Card(card.Props{Class: "panel chart-card"}) {
-			@card.Header(card.HeaderProps{Class: "panel-header chart-header"}) {
-				<div>
-					@card.Title(card.TitleProps{Class: "panel-title"}) { Daily trips }
-					@card.Description(card.DescriptionProps{Class: "panel-kicker"}) { { historyRangeLabel(data.Days) } }
-				</div>
-				<div class="chart-legend" aria-label="Chart legend"><span><i class="dot dot-poo"></i>With poo</span><span><i class="dot dot-pee"></i>Pee only</span></div>
-			}
-			@card.Content(card.ContentProps{Class: "chart-content"}) {
-				if len(data.DaySummaries) == 0 {
-					@emptyState("No trips in this range", "Log an outing and it will show up here.")
-				} else {
-					<div class="day-chart" role="list" aria-label="Trips grouped by local day">
-						for _, day := range data.DaySummaries {
-							<div class="chart-row" role="listitem">
-								<time datetime={ day.Date.Format("2006-01-02") }><strong>{ day.Date.Format("Mon") }</strong><span>{ day.Date.Format("Jan 2") }</span></time>
-								<div class="bars" aria-label={ dayAriaLabel(day) }>
-									<div class="bar-line"><svg viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true"><rect class="bar-track" width="100" height="10" rx="5"></rect><rect class="bar-poo" width={ chartWidth(day.Poos, data.ChartMax()) } height="10" rx="5"></rect></svg><strong>{ strconv.Itoa(day.Poos) }</strong></div>
-									<div class="bar-line"><svg viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true"><rect class="bar-track" width="100" height="10" rx="5"></rect><rect class="bar-pee" width={ chartWidth(day.NoPoos, data.ChartMax()) } height="10" rx="5"></rect></svg><strong>{ strconv.Itoa(day.NoPoos) }</strong></div>
-								</div>
-								<div class="day-total"><strong>{ strconv.Itoa(day.Trips) }</strong><span>total</span></div>
-							</div>
-						}
-					</div>
+templ SettingsPage() {
+	@layout("Settings | Momo", "/settings") {
+		<section class="settings-page" aria-labelledby="settings-heading">
+			<div class="eyebrow">Preferences</div>
+			<h1 id="settings-heading">Settings</h1>
+			<p>Manage how Momo keeps you updated.</p>
+			@card.Card(card.Props{Class: "panel settings-card"}) {
+				@card.Header(card.HeaderProps{Class: "panel-header"}) {
+					@card.Title(card.TitleProps{Class: "panel-title"}) { Notifications }
+					@card.Description(card.DescriptionProps{Class: "panel-kicker"}) { Trip alerts on this device }
+				}
+				@card.Content(card.ContentProps{Class: "settings-content"}) {
+					<section class="notification-panel" data-push-panel hidden aria-labelledby="notification-heading">
+						<div>
+							<strong id="notification-heading">Trip notifications</strong>
+							<span data-push-status>Get an alert whenever someone logs a trip.</span>
+						</div>
+						<button type="button" data-push-toggle>Enable notifications</button>
+					</section>
 				}
 			}
-		}
-		@card.Card(card.Props{Class: "panel history-list-card"}) {
-			@card.Header(card.HeaderProps{Class: "panel-header"}) {
-				@card.Title(card.TitleProps{Class: "panel-title"}) { Recent events }
-				@card.Description(card.DescriptionProps{Class: "panel-kicker"}) { Individual check-ins, newest first }
-			}
-			@card.Content(card.ContentProps{Class: "recent-content"}) {
-				@tripList(data.RecentTrips, 0, data.Days)
-			}
-		}
+		</section>
 	}
 }
 
@@ -181,7 +142,7 @@ templ ErrorPage(data ErrorPageData) {
 	}
 }
 
-templ tripList(trips []Trip, limit int, deleteDays int) {
+templ tripList(trips []Trip, limit int) {
 	if len(trips) == 0 {
 		@emptyState("No trips yet", "Momo's next outing will appear here.")
 	} else {
@@ -191,16 +152,7 @@ templ tripList(trips []Trip, limit int, deleteDays int) {
 					<li>
 						<span class={ tripBadgeClass(trip.HasPoo) } aria-hidden="true">@tripTypeIcon(trip.HasPoo)</span>
 						<div><strong>{ tripTypeLabel(trip.HasPoo) }</strong><time datetime={ trip.OccurredAt.Format(time.RFC3339) }>{ trip.OccurredAt.Format("Mon, Jan 2 at 3:04 PM") }</time></div>
-						if deleteDays > 0 {
-							<details class="delete-trip">
-								<summary>Delete</summary>
-								<form method="post" action={ templ.SafeURL("/trips/" + strconv.FormatInt(trip.ID, 10) + "/delete?days=" + strconv.Itoa(deleteDays)) }>
-									<button type="submit" aria-label={ "Confirm deletion of " + tripTypeLabel(trip.HasPoo) + " trip from " + trip.OccurredAt.Format("Monday, January 2 at 3:04 PM") }>Confirm delete</button>
-								</form>
-							</details>
-						} else {
-							<span class="event-status">Logged</span>
-						}
+						<span class="event-status">Logged</span>
 					</li>
 				}
 			}
@@ -236,6 +188,10 @@ templ checkIcon() {
 	<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14"></circle><path d="m9 16 5 5 9-10"></path></svg>
 }
 
+templ settingsIcon() {
+	<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+}
+
 func navClass(active bool) string {
 	if active { return "nav-link active" }
 	return "nav-link"
@@ -251,11 +207,6 @@ func homeDate(now time.Time) string {
 	return now.Format("Monday, January 2")
 }
 
-func historyRangeLabel(days int) string {
-	if days <= 0 { days = 7 }
-	return fmt.Sprintf("Last %d days, in local time", days)
-}
-
 func tripTypeLabel(hasPoo bool) string {
 	if hasPoo { return "Pee + poo" }
 	return "Pee only"
@@ -264,14 +215,4 @@ func tripTypeLabel(hasPoo bool) string {
 func tripBadgeClass(hasPoo bool) string {
 	if hasPoo { return "trip-badge trip-badge-poo" }
 	return "trip-badge trip-badge-pee"
-}
-
-func dayAriaLabel(day DaySummary) string {
-	return fmt.Sprintf("%s: %d with poo and %d pee only, %d total", day.Date.Format("Monday, January 2"), day.Poos, day.NoPoos, day.Trips)
-}
-
-func chartWidth(count int, maxCount int) string {
-	if maxCount < 1 { maxCount = 1 }
-	if count < 0 { count = 0 }
-	return fmt.Sprintf("%.1f", float64(count)*100/float64(maxCount))
 }

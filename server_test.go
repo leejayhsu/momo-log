@@ -240,17 +240,28 @@ func TestCreateTripFormRedirects(t *testing.T) {
 	}
 }
 
-func TestDeleteTripForm(t *testing.T) {
-	store := &fakeStore{deleteResult: true}
-	handler := testApp(store, time.UTC, time.Now()).routes()
+func TestSettingsPage(t *testing.T) {
+	handler := testApp(&fakeStore{}, time.UTC, time.Now()).routes()
 	response := httptest.NewRecorder()
-	handler.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/trips/42/delete?days=30", nil))
+	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/settings", nil))
 
-	if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/history?days=30" {
-		t.Fatalf("status = %d, location = %q", response.Code, response.Header().Get("Location"))
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
 	}
-	if len(store.deletedIDs) != 1 || store.deletedIDs[0] != 42 {
-		t.Fatalf("deleted IDs = %v, want [42]", store.deletedIDs)
+	body := response.Body.String()
+	for _, want := range []string{"Settings", "data-push-panel", `href="/"`, `href="/settings"`} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("body does not contain %q", want)
+		}
+	}
+}
+
+func TestHistoryPageIsRemoved(t *testing.T) {
+	response := httptest.NewRecorder()
+	testApp(&fakeStore{}, time.UTC, time.Now()).routes().ServeHTTP(response,
+		httptest.NewRequest(http.MethodGet, "/history", nil))
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404", response.Code)
 	}
 }
 
