@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"time"
 
+	"momo-poo/components"
 	"momo-poo/internal/ratelimit"
 	"momo-poo/internal/store"
 	"momo-poo/internal/trips"
@@ -62,6 +63,7 @@ func (a *app) routes() http.Handler {
 	mux.HandleFunc("POST /api/v1/push-subscriptions", a.createPushSubscriptionAPI)
 	mux.HandleFunc("DELETE /api/v1/push-subscriptions", a.deletePushSubscriptionAPI)
 	mux.HandleFunc("GET /healthz", a.health)
+	mux.Handle("GET /components/{bundle}", components.ScriptsHandler())
 	mux.Handle("GET /sw.js", web.StaticHandler())
 	mux.Handle("GET /static/", http.StripPrefix("/static/", web.StaticHandler()))
 	return securityHeaders(recoverRequests(logRequests(mux)))
@@ -80,15 +82,19 @@ func (a *app) home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	now := a.now()
-	start, end := lookbackRange(now, 1, a.location)
+	start, end := lookbackRange(now, 2, a.location)
 	items, err := a.store.List(r.Context(), start, end)
 	if err != nil {
 		a.renderError(w, r, http.StatusInternalServerError, "Could not load Momo's trips", "Please try again in a moment.")
 		return
 	}
 	data := web.HomePageData{Now: now.In(a.location), RecentTrips: presentTrips(items, a.location)}
-	data.TodayTrips = len(items)
+	todayStart, _ := lookbackRange(now, 1, a.location)
 	for _, item := range items {
+		if item.OccurredAt.Before(todayStart) {
+			continue
+		}
+		data.TodayTrips++
 		if item.HasPoo {
 			data.TodayPoos++
 		}

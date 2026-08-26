@@ -211,6 +211,31 @@ func TestListTripsAPIDaysUseLocalCalendar(t *testing.T) {
 	}
 }
 
+func TestHomeShowsTwoCalendarDaysButSummarizesToday(t *testing.T) {
+	loc := time.FixedZone("test", -7*60*60)
+	now := time.Date(2026, 8, 25, 10, 0, 0, 0, loc)
+	store := &fakeStore{items: []trips.Trip{
+		{ID: 2, OccurredAt: time.Date(2026, 8, 25, 8, 0, 0, 0, loc), HasPoo: true},
+		{ID: 1, OccurredAt: time.Date(2026, 8, 24, 20, 0, 0, 0, loc), HasPoo: false},
+	}}
+	response := httptest.NewRecorder()
+	testApp(store, loc, now).routes().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/", nil))
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	wantStart := time.Date(2026, 8, 24, 0, 0, 0, 0, loc).UTC()
+	if !store.listStart.Equal(wantStart) || !store.listEnd.Equal(now.UTC()) {
+		t.Fatalf("range = [%s, %s), want [%s, %s)", store.listStart, store.listEnd, wantStart, now.UTC())
+	}
+	body := response.Body.String()
+	for _, want := range []string{"Today and yesterday", "Mon, Aug 24", `data-delete-trip="1"`, "Delete this trip?", ">1</strong><span>trips outside"} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("body does not contain %q", want)
+		}
+	}
+}
+
 func TestInvalidDays(t *testing.T) {
 	for _, query := range []string{"days=0", "days=-1", "days=", "days=1&days=2", "days=367", "days=1.5"} {
 		t.Run(query, func(t *testing.T) {

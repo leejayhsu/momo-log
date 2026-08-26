@@ -1,4 +1,24 @@
 (() => {
+  document.addEventListener("click", async (event) => {
+    const action = event.target.closest("[data-delete-trip]");
+    if (!action) return;
+
+    const dialog = action.closest("[data-tui-dialog-content]");
+    const error = dialog.querySelector("[data-delete-trip-error]");
+    action.disabled = true;
+    error.hidden = true;
+    try {
+      const response = await fetch(`/api/v1/trips/${action.dataset.deleteTrip}`, { method: "DELETE" });
+      if (!response.ok) throw new Error("delete failed");
+      window.location.assign("/");
+    } catch {
+      error.hidden = false;
+      action.disabled = false;
+    }
+  });
+})();
+
+(() => {
   const panel = document.querySelector("[data-push-panel]");
   if (!panel) return;
 

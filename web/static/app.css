@@ -85,7 +85,11 @@ h1 { margin: .55rem 0; font-family: Georgia, "Times New Roman", serif; font-size
 .trip-badge-pee { color: #755811; background: #f6e7b6; }
 .trip-list div { display: grid; gap: .2rem; }
 .trip-list time { color: var(--muted-text); font-size: .84rem; }
-.event-status { color: var(--green); font-size: .72rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.delete-trip-trigger { min-width: 44px; min-height: 44px; color: var(--muted-text); }
+.delete-trip-trigger:hover { color: var(--poo-dark); background: #ead7ca; }
+.delete-trip-trigger svg { width: 21px; height: 21px; }
+.delete-trip-error { margin: 0; color: var(--poo-dark); font-size: .85rem; font-weight: 700; }
+.delete-trip-error[hidden] { display: none; }
 .empty-state { display: grid; place-items: center; padding: 2.4rem 1rem; color: var(--muted-text); text-align: center; }
 .empty-state > span svg { width: 46px; margin-bottom: .7rem; fill: #a6aa9f; }
 .empty-state strong { color: var(--ink); font-family: Georgia, serif; font-size: 1.25rem; }
@@ -126,7 +130,7 @@ h1 { margin: .55rem 0; font-family: Georgia, "Times New Roman", serif; font-size
   .summary-content { grid-template-columns: .8fr 1.2fr; padding: 1.3rem 1rem 1.5rem; }
   .summary-breakdown { padding-left: 1rem; }
   .trip-list li { grid-template-columns: 44px 1fr auto; gap: .7rem; }
-  .event-status { display: none; }
+  .delete-trip-trigger { min-width: 44px; }
   .settings-page { margin-top: 2.2rem; }
   .settings-page h1 { font-size: 3.2rem; }
   .site-footer span:first-child { display: none; }

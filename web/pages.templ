@@ -6,6 +6,8 @@ import (
 
 	templpkg "github.com/a-h/templ"
 
+	"momo-poo/components"
+	"momo-poo/components/alertdialog"
 	"momo-poo/components/button"
 	"momo-poo/components/card"
 )
@@ -26,6 +28,7 @@ templ layout(title string, activePath string) {
 			<link rel="apple-touch-icon" href="/static/apple-touch-icon.png"/>
 			<link rel="stylesheet" href="/static/shadcn.css"/>
 			<link rel="stylesheet" href="/static/app.css"/>
+			@components.Scripts()
 			<script src="/static/app.js" defer></script>
 		</head>
 		<body>
@@ -100,10 +103,10 @@ templ HomePage(data HomePageData) {
 			@card.Card() {
 				@card.Header() {
 					@card.Title() { Recent trips }
-					@card.Description() { Latest check-ins }
+					@card.Description() { Today and yesterday }
 				}
 				@card.Content() {
-					<div class="recent-content">@tripList(data.RecentTrips, 5)</div>
+					<div class="recent-content">@tripList(data.RecentTrips, 0)</div>
 				}
 			}
 		</section>
@@ -161,11 +164,43 @@ templ tripList(trips []Trip, limit int) {
 					<li>
 						<span class={ tripBadgeClass(trip.HasPoo) } aria-hidden="true">@tripTypeIcon(trip.HasPoo)</span>
 						<div><strong>{ tripTypeLabel(trip.HasPoo) }</strong><time datetime={ trip.OccurredAt.Format(time.RFC3339) }>{ trip.OccurredAt.Format("Mon, Jan 2 at 3:04 PM") }</time></div>
-						<span class="event-status">Logged</span>
+						@deleteTripDialog(trip)
 					</li>
 				}
 			}
 		</ul>
+	}
+}
+
+templ deleteTripDialog(trip Trip) {
+	@alertdialog.AlertDialog() {
+		@button.Button(button.Props{
+			Variant: button.VariantGhost,
+			Size: button.SizeIconLg,
+			Class: "delete-trip-trigger",
+			Attributes: mergeAttributes(alertdialog.Trigger(ctx), templpkg.Attributes{
+				"aria-label": "Delete trip from " + trip.OccurredAt.Format("Monday at 3:04 PM"),
+				"title": "Delete trip",
+			}),
+		}) {
+			@trashIcon()
+		}
+		@alertdialog.Content(alertdialog.ContentProps{Size: alertdialog.SizeSm}) {
+			@alertdialog.Header() {
+				@alertdialog.Title() { Delete this trip? }
+				@alertdialog.Description() {
+					This will permanently delete the { tripTypeLabel(trip.HasPoo) } trip logged { trip.OccurredAt.Format("Monday, Jan 2 at 3:04 PM") }.
+				}
+			}
+			<p class="delete-trip-error" data-delete-trip-error role="alert" hidden>Could not delete this trip. Please try again.</p>
+			@alertdialog.Footer() {
+				@alertdialog.Cancel() { Cancel }
+				@alertdialog.Action(alertdialog.ActionProps{
+					Variant: button.VariantDestructive,
+					Attributes: templpkg.Attributes{"data-delete-trip": strconv.FormatInt(trip.ID, 10)},
+				}) { Delete }
+			}
+		}
 	}
 }
 
@@ -201,6 +236,10 @@ templ settingsIcon() {
 	<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
 }
 
+templ trashIcon() {
+	<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path><path d="M10 11v5"></path><path d="M14 11v5"></path></svg>
+}
+
 func navClass(active bool) string {
 	if active { return "nav-link active" }
 	return "nav-link"
@@ -224,4 +263,11 @@ func tripTypeLabel(hasPoo bool) string {
 func tripBadgeClass(hasPoo bool) string {
 	if hasPoo { return "trip-badge trip-badge-poo" }
 	return "trip-badge trip-badge-pee"
+}
+
+func mergeAttributes(first, second templpkg.Attributes) templpkg.Attributes {
+	result := make(templpkg.Attributes, len(first)+len(second))
+	for key, value := range first { result[key] = value }
+	for key, value := range second { result[key] = value }
+	return result
 }
