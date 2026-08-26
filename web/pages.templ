@@ -11,6 +11,7 @@ import (
 	"momo-poo/components/button"
 	"momo-poo/components/card"
 	"momo-poo/components/popover"
+	switchcomp "momo-poo/components/switch"
 	"momo-poo/components/toast"
 )
 
@@ -118,9 +119,8 @@ templ RegisterPage() {
 templ HomePage(data HomePageData) {
 	@layout("Log a trip | Momo", "/") {
 		<section class="hero" aria-labelledby="log-heading">
-			<div class="eyebrow">Bathroom check-in</div>
-			<h1 id="log-heading">How did the walk go?</h1>
-			<p>One tap saves the current time. Momo always pees, so just tell us about the poo.</p>
+			<h1 id="log-heading" class="sr-only">Log Momo's bathroom trip</h1>
+			<img class="hero-animation" src="/static/animations/momo-poo-loop.webp" alt="" width="512" height="512"/>
 		</section>
 		if data.SuccessMessage != "" {
 			@toast.Toast(toast.Props{
@@ -197,9 +197,18 @@ templ SettingsPage(username string) {
 							<section class="notification-panel" data-push-panel hidden aria-labelledby="notification-heading">
 								<div>
 									<strong id="notification-heading">Trip notifications</strong>
-									<span data-push-status>Get an alert whenever someone logs a trip.</span>
+									<span id="notification-status" data-push-status>Get an alert whenever someone logs a trip.</span>
 								</div>
-								@button.Button(button.Props{Attributes: templpkg.Attributes{"data-push-toggle": true}}) { Enable notifications }
+								@switchcomp.Switch(switchcomp.Props{
+									ID:       "trip-notifications",
+									Class:    "notification-switch",
+									Disabled: true,
+									Attributes: templpkg.Attributes{
+										"data-push-toggle": true,
+										"aria-labelledby":  "notification-heading",
+										"aria-describedby": "notification-status",
+									},
+								})
 							</section>
 						</div>
 					}

@@ -168,8 +168,22 @@
 
   const status = panel.querySelector("[data-push-status]");
   const toggle = panel.querySelector("[data-push-toggle]");
+  const toggleInput = toggle.nextElementSibling;
   const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) ||
     (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+  const setDisabled = (disabled) => {
+    toggle.toggleAttribute("data-disabled", disabled);
+    toggle.setAttribute("aria-disabled", String(disabled));
+    toggle.tabIndex = disabled ? -1 : 0;
+    toggleInput.disabled = disabled;
+  };
+
+  const setChecked = (checked) => {
+    toggleInput.checked = checked;
+    toggleInput.dispatchEvent(new Event("change", { bubbles: true }));
+  };
+
   panel.hidden = false;
   if (!isIOS) {
     status.textContent = "Notifications are currently available when Momo is installed on an iPhone.";
@@ -195,9 +209,8 @@
     status.textContent = enabled
       ? "This iPhone will be alerted when a trip is logged."
       : "Get an alert whenever someone logs a trip.";
-    toggle.textContent = enabled ? "Disable notifications" : "Enable notifications";
-    toggle.dataset.enabled = String(enabled);
-    toggle.disabled = false;
+    setChecked(enabled);
+    setDisabled(false);
   };
 
   const decodeKey = (value) => {
@@ -217,8 +230,9 @@
     }
   };
 
-  toggle.addEventListener("click", async () => {
-    toggle.disabled = true;
+  toggle.addEventListener("switch-change", async (event) => {
+    event.preventDefault();
+    setDisabled(true);
     try {
       if (subscription) {
         const endpoint = subscription.endpoint;
@@ -236,7 +250,7 @@
           status.textContent = permission === "denied"
             ? "Notifications are blocked in iPhone Settings."
             : "Notification permission was not granted.";
-          toggle.disabled = false;
+          setDisabled(false);
           return;
         }
         const configResponse = await fetch("/api/v1/push-config");
@@ -260,7 +274,7 @@
       showSubscription();
     } catch {
       status.textContent = "Could not update notifications. Please try again.";
-      toggle.disabled = false;
+      setDisabled(false);
     }
   });
 
