@@ -6,6 +6,7 @@
 - should have a path sharing with docker host so sqlite data is not lost on container destruction
 - use std lib for router, but use templ and templui for ui components.
 - use the latest version of golang and all dependencies when possible. you are allowed to update my version of golang.
+- IMPORTANT: write the bare minimum for tests, this is NOT a production grade app. it's simply for personal usage.
 
 # BE
 - this is a pet bathroom tracking app (basically tracking when my dog Momo pees and poos)
