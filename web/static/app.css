@@ -147,7 +147,7 @@ h1 { margin: .55rem 0; font-family: Georgia, "Times New Roman", serif; font-size
   .brand > svg { width: 34px; }
   .primary-nav { gap: .15rem; padding: .25rem; }
   .nav-link { min-height: 42px; padding: 0 .75rem; font-size: .82rem; }
-  .hero { margin: -1.5rem auto 1.5rem; }
+  .hero { margin: clamp(-7.5rem, -20vw, -4rem) auto 1.5rem; }
   .hero p { font-size: .95rem; }
   .trip-actions { gap: .75rem; }
   .notification-panel { align-items: center; }
