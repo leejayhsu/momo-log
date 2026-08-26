@@ -16,7 +16,15 @@ tailwindcss -i ./web/static/globals.css -o ./web/static/shadcn.css --minify
 
 ```sh
 mkdir -p data
-LISTEN_ADDR=:8081 DATABASE_PATH=./data/momo-poo.db APP_TIMEZONE=Local go run .
+LISTEN_ADDR=:8081 \
+DATABASE_PATH=./data/momo-poo.db \
+APP_TIMEZONE=Local \
+templ generate \
+  --watch \
+  --proxy=http://localhost:8081 \
+  --watch-pattern='(.+\.(go|templ|css|js)$)' \
+  --ignore-pattern='(.+_templ\.go$)|(web/static/shadcn\.css$)' \
+  --cmd='tailwindcss -i ./web/static/globals.css -o ./web/static/shadcn.css --minify && go run .'
 ```
 
 This runs the same application directly on the host and is the quickest alternative to Docker Compose for local testing. Open <http://localhost:8080>. The health endpoint is available at <http://localhost:8080/healthz>. Stop the server with `Ctrl+C`; the local SQLite database remains in `./data/momo-poo.db`.
