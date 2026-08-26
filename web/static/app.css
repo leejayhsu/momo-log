@@ -69,16 +69,19 @@ h1 { margin: .55rem 0; font-family: Georgia, "Times New Roman", serif; font-size
 .dot-pee { background: var(--pee); }
 .recent-content { padding: .8rem 1.7rem 1.2rem; }
 .trip-list { margin: 0; padding: 0; list-style: none; }
-.trip-list li { min-height: 72px; display: grid; grid-template-columns: 48px 1fr auto; align-items: center; gap: 1rem; border-bottom: 1px solid var(--line); }
+.trip-list li { min-height: 72px; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 1rem; border-bottom: 1px solid var(--line); }
 .trip-list li:last-child { border-bottom: 0; }
+.recent-trip-trigger { width: 100%; min-height: 72px; display: grid; grid-template-columns: 48px 1fr; align-items: center; gap: 1rem; padding: 0; color: inherit; background: transparent; border: 0; border-radius: 12px; font: inherit; text-align: left; cursor: pointer; }
+.recent-trip-trigger:hover, .recent-trip-trigger[aria-expanded="true"] { background: color-mix(in srgb, var(--cream) 65%, transparent); }
+.recent-trip-trigger:focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; }
 .trip-badge { width: 45px; height: 45px; display: grid; place-items: center; border-radius: 14px; }
 .trip-badge svg { width: 25px; fill: currentColor; }
 .trip-badge .icon-detail { fill: none; stroke: currentColor; stroke-width: 4; stroke-linecap: round; }
 .trip-badge-poo { color: var(--poo-dark); background: #ead7ca; }
 .trip-badge-poo circle { fill: #ead7ca; }
 .trip-badge-pee { color: #755811; background: #f6e7b6; }
-.trip-list div { display: grid; gap: .2rem; }
 .trip-list time { color: var(--muted-text); font-size: .84rem; }
+.recent-trip-popover { width: min(19rem, calc(100vw - 2rem)); padding: 1rem; }
 .delete-trip-trigger { min-width: 44px; min-height: 44px; color: var(--muted-text); }
 .delete-trip-trigger:hover { color: var(--poo-dark); background: #ead7ca; }
 .delete-trip-trigger svg { width: 21px; height: 21px; }
@@ -120,7 +123,8 @@ h1 { margin: .55rem 0; font-family: Georgia, "Times New Roman", serif; font-size
   .recent-content, .settings-content { padding-left: 1rem; padding-right: 1rem; }
   .summary-content { grid-template-columns: .8fr 1.2fr; padding: 1.3rem 1rem 1.5rem; }
   .summary-breakdown { padding-left: 1rem; }
-  .trip-list li { grid-template-columns: 44px 1fr auto; gap: .7rem; }
+  .trip-list li { gap: .7rem; }
+  .recent-trip-trigger { grid-template-columns: 44px 1fr; gap: .7rem; }
   .delete-trip-trigger { min-width: 44px; }
   .settings-page { margin-top: 2.2rem; }
   .settings-page h1 { font-size: 3.2rem; }

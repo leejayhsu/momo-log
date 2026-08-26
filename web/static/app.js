@@ -1,4 +1,25 @@
 (() => {
+  const url = new URL(window.location.href);
+  if (url.searchParams.has("recorded")) {
+    url.searchParams.delete("recorded");
+    history.replaceState(history.state, "", url.pathname + url.search + url.hash);
+  }
+
+  const scrollKey = "momo-trip-submit-scroll";
+  const savedScroll = sessionStorage.getItem(scrollKey);
+  if (savedScroll !== null) {
+    history.scrollRestoration = "manual";
+    window.scrollTo(0, Number(savedScroll));
+    sessionStorage.removeItem(scrollKey);
+    window.addEventListener("load", () => { history.scrollRestoration = "auto"; }, { once: true });
+  }
+
+  document.querySelectorAll('.trip-actions form[action="/trips"]').forEach((form) => {
+    form.addEventListener("submit", () => sessionStorage.setItem(scrollKey, String(window.scrollY)));
+  });
+})();
+
+(() => {
   document.addEventListener("click", async (event) => {
     const action = event.target.closest("[data-delete-trip]");
     if (!action) return;

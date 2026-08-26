@@ -71,6 +71,7 @@ func (a *app) routes() http.Handler {
 
 func (a *app) settings(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := web.SettingsPage().Render(r.Context(), w); err != nil {
 		log.Printf("render settings: %v", err)
 	}
@@ -106,6 +107,7 @@ func (a *app) home(w http.ResponseWriter, r *http.Request) {
 		data.SuccessMessage = "Pee-only trip saved at " + now.In(a.location).Format("3:04 PM") + "."
 	}
 	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := web.HomePage(data).Render(r.Context(), w); err != nil {
 		log.Printf("render home: %v", err)
 	}
@@ -337,6 +339,7 @@ func (a *app) health(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) renderError(w http.ResponseWriter, r *http.Request, status int, title, message string) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
 	if err := web.ErrorPage(web.ErrorPageData{StatusCode: status, Title: title, Message: message}).Render(r.Context(), w); err != nil {
 		log.Printf("render error page: %v", err)

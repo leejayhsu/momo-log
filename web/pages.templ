@@ -10,6 +10,7 @@ import (
 	"momo-poo/components/alertdialog"
 	"momo-poo/components/button"
 	"momo-poo/components/card"
+	"momo-poo/components/popover"
 	"momo-poo/components/toast"
 )
 
@@ -169,8 +170,23 @@ templ tripList(trips []Trip, limit int) {
 			for index, trip := range trips {
 				if limit == 0 || index < limit {
 					<li>
-						<span class={ tripBadgeClass(trip.HasPoo) } aria-hidden="true">@tripTypeIcon(trip.HasPoo)</span>
-						<div><strong>{ tripTypeLabel(trip.HasPoo) }</strong><time datetime={ trip.OccurredAt.Format(time.RFC3339) }>{ trip.OccurredAt.Format("Mon, Jan 2 at 3:04 PM") }</time></div>
+						@popover.Popover() {
+							<button
+								type="button"
+								class="recent-trip-trigger"
+								aria-label={ tripTypeLabel(trip.HasPoo) + " trip from " + trip.OccurredAt.Format("Monday at 3:04 PM") }
+								{ popover.Trigger(ctx)... }
+							>
+								<span class={ tripBadgeClass(trip.HasPoo) } aria-hidden="true">@tripTypeIcon(trip.HasPoo)</span>
+								<time datetime={ trip.OccurredAt.Format(time.RFC3339) }>{ trip.OccurredAt.Format("Mon, Jan 2 at 3:04 PM") }</time>
+							</button>
+							@popover.Content(popover.ContentProps{Class: "recent-trip-popover", Align: popover.AlignEnd}) {
+								@popover.Header() {
+									@popover.Title() { { tripTypeLabel(trip.HasPoo) } }
+									@popover.Description() { Logged { trip.OccurredAt.Format("Monday, Jan 2 at 3:04 PM") }. }
+								}
+							}
+						}
 						@deleteTripDialog(trip)
 					</li>
 				}
@@ -244,33 +260,47 @@ templ trashIcon() {
 }
 
 func navClass(active bool) string {
-	if active { return "nav-link active" }
+	if active {
+		return "nav-link active"
+	}
 	return "nav-link"
 }
 
 func currentPage(active bool) string {
-	if active { return "page" }
+	if active {
+		return "page"
+	}
 	return "false"
 }
 
 func homeDate(now time.Time) string {
-	if now.IsZero() { now = time.Now() }
+	if now.IsZero() {
+		now = time.Now()
+	}
 	return now.Format("Monday, January 2")
 }
 
 func tripTypeLabel(hasPoo bool) string {
-	if hasPoo { return "Pee + poo" }
+	if hasPoo {
+		return "Pee + poo"
+	}
 	return "Pee only"
 }
 
 func tripBadgeClass(hasPoo bool) string {
-	if hasPoo { return "trip-badge trip-badge-poo" }
+	if hasPoo {
+		return "trip-badge trip-badge-poo"
+	}
 	return "trip-badge trip-badge-pee"
 }
 
 func mergeAttributes(first, second templpkg.Attributes) templpkg.Attributes {
 	result := make(templpkg.Attributes, len(first)+len(second))
-	for key, value := range first { result[key] = value }
-	for key, value := range second { result[key] = value }
+	for key, value := range first {
+		result[key] = value
+	}
+	for key, value := range second {
+		result[key] = value
+	}
 	return result
 }
