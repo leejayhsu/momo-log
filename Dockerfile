@@ -20,7 +20,8 @@ COPY --from=build /out/momo-poo /usr/local/bin/momo-poo
 
 ENV LISTEN_ADDR=:8080 \
     DATABASE_PATH=/data/momo-poo.db \
-    APP_TIMEZONE=Local
+    APP_TIMEZONE=Local \
+    GO_ENV=production
 
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \

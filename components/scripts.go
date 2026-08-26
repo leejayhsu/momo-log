@@ -67,7 +67,11 @@ func gzipBundle(js []byte) []byte {
 func bundle() ([]byte, []byte, string) {
 	if isDevelopment() {
 		js, hash := buildBundle(os.DirFS(developmentComponentsDir))
-		return js, nil, hash
+		if len(js) > 0 {
+			return js, nil, hash
+		}
+		// Runtime images do not contain the component source tree. Fall back to
+		// the embedded bundle if a deployment is accidentally started in dev mode.
 	}
 	prodOnce.Do(func() {
 		prodJS, prodHash = buildBundle(TemplFiles)
