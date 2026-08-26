@@ -1,11 +1,11 @@
 (() => {
+  const scrollKey = "momo-page-scroll";
   const url = new URL(window.location.href);
   if (url.searchParams.has("recorded")) {
     url.searchParams.delete("recorded");
     history.replaceState(history.state, "", url.pathname + url.search + url.hash);
   }
 
-  const scrollKey = "momo-trip-submit-scroll";
   const savedScroll = sessionStorage.getItem(scrollKey);
   if (savedScroll !== null) {
     history.scrollRestoration = "manual";
@@ -31,6 +31,7 @@
     try {
       const response = await fetch(`/api/v1/trips/${action.dataset.deleteTrip}`, { method: "DELETE" });
       if (!response.ok) throw new Error("delete failed");
+      sessionStorage.setItem("momo-page-scroll", String(window.scrollY));
       window.location.assign("/");
     } catch {
       error.hidden = false;
