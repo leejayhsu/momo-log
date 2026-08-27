@@ -121,7 +121,9 @@ templ HomePage(data HomePageData) {
 		<section class="hero" aria-labelledby="log-heading">
 			<h1 id="log-heading" class="sr-only">Log Momo's bathroom trip</h1>
 			<div class="hero-title" aria-hidden="true"><span>POOP</span><span>TIME</span></div>
-			<img class="hero-animation" src={ staticURL("animations/momo-poo-loop.webp") } alt="" width="512" height="512"/>
+			<div class="hero-animation-crop" aria-hidden="true">
+				<img class="hero-animation" src={ staticURL("animations/momo-poo-loop.webp") } alt="" width="512" height="512"/>
+			</div>
 		</section>
 		if data.SuccessMessage != "" {
 			@toast.Toast(toast.Props{
