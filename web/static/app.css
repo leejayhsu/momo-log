@@ -51,12 +51,10 @@ h1 { margin: .55rem 0; font-family: Georgia, "Times New Roman", serif; font-size
 .notification-panel[hidden] { display: none; }
 .notification-panel div { display: grid; gap: .2rem; }
 .notification-panel span { color: var(--muted-text); }
-.notification-panel [data-push-toggle] { width: 56px; height: 34px; flex: none; cursor: pointer; }
+.notification-panel [data-push-toggle] { flex: none; cursor: pointer; }
 .notification-panel [data-push-toggle][data-checked] { background: var(--green); }
 .notification-panel [data-push-toggle][data-unchecked] { background: #b8beb6; }
-.notification-panel [data-push-toggle] [data-slot="switch-thumb"] { width: 28px; height: 28px; background: white; box-shadow: 0 1px 4px rgba(32,36,31,.3); }
-.notification-panel [data-push-toggle][data-checked] [data-slot="switch-thumb"] { transform: translateX(24px); }
-.notification-panel [data-push-toggle][data-unchecked] [data-slot="switch-thumb"] { transform: translateX(0); }
+.notification-panel [data-tui-switch-input] { display: none; }
 .trip-actions { width: min(1120px, 100%); display: grid; grid-template-columns: 1fr 1fr; gap: clamp(1rem, 2.5vw, 2rem); margin: 0 auto clamp(2.2rem, 5vh, 4rem); }
 .trip-actions form { min-width: 0; }
 .trip-button { width: 100%; height: clamp(240px, 34vh, 350px); -webkit-tap-highlight-color: transparent; }
