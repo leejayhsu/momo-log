@@ -38,12 +38,17 @@ svg { display: block; }
 .nav-signout { display: flex; margin: 0; }
 .nav-signout button { color: var(--muted-text); background: transparent; border: 0; cursor: pointer; }
 .nav-signout button:hover { color: var(--ink); background: var(--cream); }
+.hero { position: relative; max-width: 850px; margin: -4.5rem auto 2rem; text-align: center; isolation: isolate; }
+.hero-title { position: absolute; z-index: -1; right: 0; bottom: 9%; left: 0; color: rgba(146,87,58,.75); font-family: Georgia, "Times New Roman", serif; font-size: clamp(6rem, 15vw, 11.5rem); font-weight: 700; letter-spacing: -.02em; line-height: .68; }
+.hero-title span { display: block; }
+.hero-title span + span { margin-top: .1em; }
+.hero-animation { position: relative; z-index: 1; width: min(420px, 78vw); height: auto; margin: 0 auto; opacity: .8; filter: brightness(.42) saturate(1.35); }
 .eyebrow { color: var(--green); font-size: .74rem; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
 h1 { margin: .55rem 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(2.65rem, 5.4vw, 5.7rem); font-weight: 500; letter-spacing: -.055em; line-height: .98; }
-.settings-page > p, .error-page p { max-width: 630px; margin: 1rem auto 0; color: var(--muted-text); font-size: clamp(1rem, 1.5vw, 1.25rem); line-height: 1.55; }
-.notification-panel { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.hero p, .settings-page > p, .error-page p { max-width: 630px; margin: 1rem auto 0; color: var(--muted-text); font-size: clamp(1rem, 1.5vw, 1.25rem); line-height: 1.55; }
+.notification-panel { width: min(780px, 100%); min-height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin: 0 auto 1.4rem; padding: .9rem 1.2rem; background: rgba(255,250,240,.82); border: 1px solid var(--line); border-radius: 16px; }
 .notification-panel[hidden] { display: none; }
-.notification-panel div { min-width: 0; display: grid; gap: .2rem; }
+.notification-panel div { display: grid; gap: .2rem; }
 .notification-panel span { color: var(--muted-text); }
 .notification-panel [data-push-toggle] { width: 56px; height: 34px; flex: none; cursor: pointer; }
 .notification-panel [data-push-toggle][data-checked] { background: var(--green); }
@@ -51,7 +56,7 @@ h1 { margin: .55rem 0; font-family: Georgia, "Times New Roman", serif; font-size
 .notification-panel [data-push-toggle] [data-slot="switch-thumb"] { width: 28px; height: 28px; background: white; box-shadow: 0 1px 4px rgba(32,36,31,.3); }
 .notification-panel [data-push-toggle][data-checked] [data-slot="switch-thumb"] { transform: translateX(24px); }
 .notification-panel [data-push-toggle][data-unchecked] [data-slot="switch-thumb"] { transform: translateX(0); }
-.trip-actions { width: min(1120px, 100%); display: grid; grid-template-columns: 1fr 1fr; gap: clamp(1rem, 2.5vw, 2rem); margin: clamp(1.5rem, 4vh, 3rem) auto clamp(2.2rem, 5vh, 4rem); }
+.trip-actions { width: min(1120px, 100%); display: grid; grid-template-columns: 1fr 1fr; gap: clamp(1rem, 2.5vw, 2rem); margin: 0 auto clamp(2.2rem, 5vh, 4rem); }
 .trip-actions form { min-width: 0; }
 .trip-button { width: 100%; height: clamp(240px, 34vh, 350px); -webkit-tap-highlight-color: transparent; }
 .trip-button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 4px solid #2e79a0; outline-offset: 4px; }
@@ -103,6 +108,7 @@ h1 { margin: .55rem 0; font-family: Georgia, "Times New Roman", serif; font-size
 .settings-page h1 { margin-bottom: .5rem; }
 .settings-card { margin-top: 2rem; text-align: left; }
 .settings-content { padding: 1.2rem 1.7rem 1.7rem; }
+.settings-content .notification-panel { width: 100%; margin: 0; background: var(--cream); }
 .site-footer { min-height: 100px; display: flex; align-items: center; justify-content: space-between; margin-top: 2.5rem; color: var(--muted-text); border-top: 1px solid var(--line); font-size: .72rem; letter-spacing: .12em; }
 .error-page { min-height: 65vh; display: grid; place-items: center; align-content: center; text-align: center; }
 .error-code { color: var(--poo); font-family: Georgia, serif; font-size: clamp(6rem, 17vw, 13rem); line-height: .75; opacity: .18; }
@@ -141,6 +147,8 @@ h1 { margin: .55rem 0; font-family: Georgia, "Times New Roman", serif; font-size
   .brand > svg { width: 34px; }
   .primary-nav { gap: .15rem; padding: .25rem; }
   .nav-link { min-height: 42px; padding: 0 .75rem; font-size: .82rem; }
+  .hero { margin: clamp(-7.5rem, -20vw, -4rem) auto 1.5rem; }
+  .hero p { font-size: .95rem; }
   .trip-actions { gap: .75rem; }
   .notification-panel { align-items: center; }
   .trip-button { height: 190px; border-radius: 23px; }
